@@ -1,0 +1,106 @@
+:: Project_CourthouseMonthlyCalendar.txt 20250826
+::============================================================================
+
+::============================================================================
+:: Create the project folder.
+::============================================================================
+P:
+cd P:\Project_CourthouseMonthlyCalendar
+::============================================================================
+:: Set up GitHub Repository
+::============================================================================
+1.  Log into GitHub.com
+2.  Click the "New" button to initiate the creation of the new repository with 
+    the following values:
+    Name: Project_CourthouseMonthlyCalendar
+    Description: Small/test miscellaneous Python applications.
+    Configuration:
+        Choose visibility: Private
+        Add README: Off
+        Add .gitignore: No
+        Add license: No license
+ 2.1 Click "Create repository" button.
+ 3. Create the local repository.
+ 3.1 Copy the HTTPS URL to the clipboard.
+     Ex: https://github.com/tzeimet/Project_CourthouseMonthlyCalendar.git
+3.2 Open terminal to the folder of the local repository.
+    Ex: cd P:\Project_CourthouseMonthlyCalendar
+3.3 Execute the following commands:
+::
+:: In a terminal window, set working directory to the project folder.
+p:
+cd \Project_CourthouseMonthlyCalendar
+:: Create initial README.md Markdown file.
+echo "# Project_CourthouseMonthlyCalendar" > README.md
+:: Initialize the local git repository.
+git init
+:: Add the new README.md file.
+git add README.md
+:: Create the first git commit.
+git commit -m "first commit"
+:: Rename the current git branch to "main".
+git branch -M main
+:: Connect the local repository to the GitHub repository.
+git remote add origin https://github.com/tzeimet/Project_CourthouseMonthlyCalendar.git
+:: Push the commits from the local repository to the remote GitHub repository.
+git push -u origin main
+::
+::============================================================================
+:: Set OS environment for Desired Python Version
+::============================================================================
+:: If necessary, configure OS environment for desired version of Python.
+:: This assumes the desired version on Python is already installed.
+set python_version=313
+set PYTHON_HOME=C:\bin\Python%python_version%
+path=%PYTHON_HOME%;%path% 
+::============================================================================
+:: Initialize the Project with UV
+::============================================================================
+:: Set working directory to the project folder.
+p:
+cd \Project_CourthouseMonthlyCalendar
+:: Init UV project
+uv init
+:: Review and adjust the requires-python field in pyproject.toml to accurately
+.. reflect the Python versions your project is truly compatible with.
+type pyproject.toml
+:: Also modify other fields as desired, such as [project] name
+.. and [project] description.
+:: Modify the "README.md" file for the current Project.
+-
+::============================================================================
+:: Create the UV Virtual Environment. Defaults to .venv
+::============================================================================
+uv venv
+::============================================================================
+:: Create Activation/Deactivate Command Scripts, For Convenience.
+::============================================================================
+echo .venv\Scripts\activate.bat >activate.cmd
+echo .venv\Scripts\deactivate.bat >deactivate.cmd
+::============================================================================
+:: Activation UV environment.
+::============================================================================
+activate.cmd
+::============================================================================
+:: Add and Install Dependencies
+::============================================================================
+:: From an existing requirements.txt file:
+uv add -r requirements.txt
+:: Individual packages:
+uv add duckdb --link-mode=copy
+uv add icecream --link-mode=copy
+uv add openpyxl --link-mode=copy
+uv add pandas --link-mode=copy
+uv add pyodbc --link-mode=copy
+uv add sqlalchemy --link-mode=copy
+::============================================================================
+:: Lock and Sync Dependencies (for Collaboration/Deployment)
+::============================================================================
+:: Lock your dependencies (creates/updates uv.lock):
+uv lock
+:: Sync your environment to the lock file:
+uv sync
+::============================================================================
+:: Run Python Code
+::============================================================================
+
