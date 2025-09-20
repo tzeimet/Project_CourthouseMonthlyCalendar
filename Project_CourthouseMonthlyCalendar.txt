@@ -1,4 +1,4 @@
-:: Project_CourthouseMonthlyCalendar.txt 20250826
+:: Project_CourthouseMonthlyCalendar.txt 20250920
 ::============================================================================
 
 ::============================================================================
@@ -88,11 +88,15 @@ activate.cmd
 uv add -r requirements.txt
 :: Individual packages:
 uv add duckdb --link-mode=copy
+uv add configparser --link-mode=copy
 uv add icecream --link-mode=copy
+uv add loguru --link-mode=copy
 uv add openpyxl --link-mode=copy
 uv add pandas --link-mode=copy
 uv add pyodbc --link-mode=copy
+uv add PyYAML --link-mode=copy
 uv add sqlalchemy --link-mode=copy
+uv add typer --link-mode=copy
 ::============================================================================
 :: Lock and Sync Dependencies (for Collaboration/Deployment)
 ::============================================================================

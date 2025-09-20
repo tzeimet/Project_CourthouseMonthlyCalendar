@@ -1,0 +1,131 @@
+# gen_court_session_calendar.yaml
+
+ARGBColors:
+    Red: 'FFFF0000' 
+    Blue : 'FF0000FF'
+    Blue_Dark : 'FF00008B'
+    Blue_Light : 'FFADD8E6'
+    Blue_Navy : 'FF000080'
+    Blue_Midnight : 'FF191970'
+    Blue_Royal : 'FF4169E1'
+    Blue_Custom : 'FF002060'
+    Orange : 'FFFFA500'
+    Purple : 'FF800080'
+    Green : 'FF008000'
+    Black : 'FF000000'
+    Violet : 'FFEE82EE'
+    Brown : 'FFA52A2A'
+    White : 'FFFFFFFF'
+
+excel:
+    cell_unit_per_inch: 13
+
+worksheet:
+
+    title:
+        cell_range:
+            top_left_cell: A1
+            bottom_right_cell: E2
+            merge_cells: ByBoth
+        text: 
+            - January 2025 Superior Court Master Calendar
+        font:
+            name: Arial
+            size: 16
+            bold: True
+            italic: False
+            color: White
+        alignment:
+            horizontal: center
+            vertical: center
+        fill:
+            start_color: Blue_Custom
+            end_color: Blue_Custom
+            fill_type: solid
+        border:
+            left:
+                style: thick
+                color: Black
+            right:
+                style: thick
+                color: Black
+            top:
+                style: thick
+                color: Black
+            bottom:
+                style: thin
+                color: White
+
+    subtitle:
+        cell_range:
+            top_left_cell: A3
+            bottom_right_cell: E3
+            merge_cells: ByColumn
+        text: 
+            - "Presiding Superior Court Judge: Honorable Jeffrey S. Bagley"
+        font:
+            name: Arial
+            size: 9
+            bold: True
+            italic: False
+            color: White
+        alignment:
+            horizontal: center
+            vertical: center
+        fill:
+            start_color: Blue_Custom
+            end_color: Blue_Custom
+            fill_type: solid
+        border:
+            left:
+                style: thick
+                color: Black
+            right:
+                style: thick
+                color: Black
+            top:
+                style: thin
+                color: White
+            bottom:
+                style: thick
+                color: Black
+
+    workday:
+        cell_range:
+            top_left_cell: A4
+            bottom_right_cell: E5
+            merge_cells: ByRow
+        column_width_inches: 1.59
+        text:
+            - Monday
+            - Tuesday
+            - Wednesday
+            - Thursday
+            - Friday
+        font:
+            name: Calibri
+            size: 10
+            bold: True
+            italic: False
+            color: Black
+        alignment:
+            horizontal: center
+            vertical: center
+        fill:
+            start_color: White
+            end_color: White
+            fill_type: solid
+        border:
+            left:
+                style: thick
+                color: Black
+            right:
+                style: thick
+                color: Black
+            top:
+                style: thick
+                color: Black
+            bottom:
+                style: thick
+                color: Black
+

@@ -125,3 +125,5 @@ date_ranges_with_desc = consecutive_df.groupby('Group_ID').agg(
 
 print("\n--- Consecutive Session Date Ranges (Grouped by Description) ---")
 print(date_ranges_with_desc)
+
+date_ranges_with_desc['SessionDescription'].unique()

@@ -2,3 +2,7 @@
 
 activate.cmd
 deactivate.cmd
+
+*.xlsx
+*.xlsx#
+
