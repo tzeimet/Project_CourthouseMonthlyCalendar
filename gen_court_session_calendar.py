@@ -1,5 +1,6 @@
 # gen_court_session_calendar.py 20250920
 
+import calendar
 import configparser
 from enum import Enum
 from icecream import ic
@@ -104,96 +105,118 @@ def main(
         logger.info(f"Reading YAML configurations from: {yaml_config_file}")
         yaml_config = read_yaml_configuration(yaml_config_file)
         
+        # 
+        calendar_year = yaml_config['data']['calendar_year']
+        
         # Open a new workbook.
         wb = Workbook()
         # Open the active worksheet. This would be the first of the new workbook.
         ws = wb.active
+        # Rename the worksheet
+        sheet_name = yaml_config['worksheet']['sheet_name']
+        ws.title = sheet_name.replace("${calendar_month_name}$",calendar.month_name[1]).replace("${calendar_year}$",str(calendar_year))
         
         #breakpoint()
         for k,v in yaml_config['worksheet'].items():
-            logger.info(f"Creating: {k}")
-            top_left_cell = v['cell_range']['top_left_cell']
-            bottom_right_cell = v['cell_range']['bottom_right_cell']
-            min_row, min_col = coordinate_to_tuple(top_left_cell)
-            max_row, max_col = coordinate_to_tuple(bottom_right_cell)
-            merge_cells = v['cell_range']['merge_cells']
-            # Define font
-            font = Font(
-                name=v['font']['name'],             # Font type/family
-                size=v['font']['size'],             # Font size (points)
-                bold=v['font']['bold'],             # Optional: Make text bold
-                italic=v['font']['italic'],         # Optional: Make text italic
-                color=yaml_config['ARGBColors'][v['font']['color']]  # Font color (Hex code - FF0000 is Red)
-            )
-            # Define fill color
-            fill_color = PatternFill(
-                start_color=yaml_config['ARGBColors'][v['fill']['start_color']], 
-                end_color=yaml_config['ARGBColors'][v['fill']['end_color']], 
-                fill_type=v['fill']['fill_type']
-            )
-            # Define border
-            border = Border(
-                left=Side(
-                    style=v['border']['left']['style'], 
-                    color=yaml_config['ARGBColors'][v['border']['left']['color']]
-                ), 
-                right=Side(
-                    style=v['border']['right']['style'], 
-                    color=yaml_config['ARGBColors'][v['border']['right']['color']]
-                ), 
-                top=Side(
-                    style=v['border']['top']['style'], 
-                    color=yaml_config['ARGBColors'][v['border']['top']['color']]
-                ), 
-                bottom=Side(
-                    style=v['border']['bottom']['style'], 
-                    color=yaml_config['ARGBColors'][v['border']['bottom']['color']]
-                ) 
-            )
-            # Merge cells.
-            if merge_cells in ['ByColumn','ByBoth',]:
-                ws.merge_cells(f"{top_left_cell}:{bottom_right_cell}")
-                # Set text
-                ws[top_left_cell] = v['text'][0]
-                # Set font
-                ws[top_left_cell].font = font
-                # Set alignment.
-                ws[top_left_cell].alignment = Alignment(horizontal=v['alignment']['horizontal'], vertical=v['alignment']['vertical'])
-                # Set fill color.
-                ws[top_left_cell].fill = fill_color
-            else: # 'ByRow'
+            if isinstance(v, dict): 
+                logger.info(f"Creating: {k}")
+                top_left_cell = v['cell_range']['top_left_cell']
+                bottom_right_cell = v['cell_range']['bottom_right_cell']
+                min_row, min_col = coordinate_to_tuple(top_left_cell)
+                max_row, max_col = coordinate_to_tuple(bottom_right_cell)
+                merge_cells = v['cell_range']['merge_cells']
+                # Define font
+                font = Font(
+                    name=v['font']['name'],             # Font type/family
+                    size=v['font']['size'],             # Font size (points)
+                    bold=v['font']['bold'],             # Optional: Make text bold
+                    italic=v['font']['italic'],         # Optional: Make text italic
+                    color=yaml_config['ARGBColors'][v['font']['color']]  # Font color (Hex code - FF0000 is Red)
+                )
+                # Define fill color
+                fill_color = PatternFill(
+                    start_color=yaml_config['ARGBColors'][v['fill']['start_color']], 
+                    end_color=yaml_config['ARGBColors'][v['fill']['end_color']], 
+                    fill_type=v['fill']['fill_type']
+                )
+                # Define border
+                border = Border(
+                    left=Side(
+                        style=v['border']['left']['style'], 
+                        color=yaml_config['ARGBColors'][v['border']['left']['color']]
+                    ), 
+                    right=Side(
+                        style=v['border']['right']['style'], 
+                        color=yaml_config['ARGBColors'][v['border']['right']['color']]
+                    ), 
+                    top=Side(
+                        style=v['border']['top']['style'], 
+                        color=yaml_config['ARGBColors'][v['border']['top']['color']]
+                    ), 
+                    bottom=Side(
+                        style=v['border']['bottom']['style'], 
+                        color=yaml_config['ARGBColors'][v['border']['bottom']['color']]
+                    ) 
+                )
                 # Merge cells.
-                for i,col in enumerate(range(min_col,max_col+1)):
-                    ws.merge_cells(
-                        start_row=min_row
-                        ,start_column=col
-                        ,end_row=max_row
-                        ,end_column=col
-                    )
+                if merge_cells in ['ByColumn','ByBoth',]:
+                    ws.merge_cells(f"{top_left_cell}:{bottom_right_cell}")
                     # Set text
-                    ws.cell(row=min_row, column=col).value = v['text'][i]
+                    ws[top_left_cell] = v['text'][0] if isinstance(v['text'],list) else v['text']
                     # Set font
-                    ws.cell(row=min_row, column=col).font = font
+                    ws[top_left_cell].font = font
                     # Set alignment.
-                    ws.cell(row=min_row, column=col).alignment = Alignment(horizontal=v['alignment']['horizontal'], vertical=v['alignment']['vertical'])
+                    ws[top_left_cell].alignment = Alignment(horizontal=v['alignment']['horizontal'], vertical=v['alignment']['vertical'])
                     # Set fill color.
-                    ws.cell(row=min_row, column=col).fill = fill_color
-            # Add border
-            # You must apply the border to ALL cells in the merged range
-            # since a single cell's border won't cover the entire merged area.
-            for row in ws.iter_rows(min_row=min_row, min_col=min_col, max_row=max_row, max_col=max_col):
-                for cell in row:
-                    cell.border = border
-            # Set column width
-            if v.get('column_width_inches',None) is not None:
-                # Set width of columns
-                cell_width = yaml_config['excel']['cell_unit_per_inch'] * v['column_width_inches']
-                _, col_idx_left = coordinate_to_tuple(top_left_cell)
-                _, col_idx_right = coordinate_to_tuple(bottom_right_cell)
-                for col_idx in range(col_idx_left,col_idx_right+1):
-                    ws.column_dimensions[get_column_letter(col_idx)].width = cell_width
+                    ws[top_left_cell].fill = fill_color
+                else: # 'ByRow'
+                    # Merge cells.
+                    for i,col in enumerate(range(min_col,max_col+1)):
+                        ws.merge_cells(
+                            start_row=min_row
+                            ,start_column=col
+                            ,end_row=max_row
+                            ,end_column=col
+                        )
+                        # Set text
+                        ws.cell(row=min_row, column=col).value = v['text'][i]  if isinstance(v['text'],list) else v['text']
+                        # Set font
+                        ws.cell(row=min_row, column=col).font = font
+                        # Set alignment.
+                        ws.cell(row=min_row, column=col).alignment = Alignment(horizontal=v['alignment']['horizontal'], vertical=v['alignment']['vertical'])
+                        # Set fill color.
+                        ws.cell(row=min_row, column=col).fill = fill_color
+                # Add border
+                # You must apply the border to ALL cells in the merged range
+                # since a single cell's border won't cover the entire merged area.
+                for row in ws.iter_rows(min_row=min_row, min_col=min_col, max_row=max_row, max_col=max_col):
+                    for cell in row:
+                        cell.border = border
+                # Set column width
+                if v.get('column_width_inches',None) is not None:
+                    # Set width of columns
+                    cell_width = yaml_config['excel']['cell_unit_per_inch'] * v['column_width_inches']
+                    _, col_idx_left = coordinate_to_tuple(top_left_cell)
+                    _, col_idx_right = coordinate_to_tuple(bottom_right_cell)
+                    for col_idx in range(col_idx_left,col_idx_right+1):
+                        ws.column_dimensions[get_column_letter(col_idx)].width = cell_width
+            
+        # Copy worksheet for remaining months
+        top_left_cell = yaml_config['worksheet']['title']['cell_range']['top_left_cell']
+        title = yaml_config['worksheet']['title']['text'][0]  if isinstance(yaml_config['worksheet']['title']['text'],list) else yaml_config['worksheet']['title']['text']
+        for m in range(2,13):
+            # Copy worksheet
+            new_ws = wb.copy_worksheet(ws)
+            # Rename the new worksheet
+            new_ws.title = sheet_name.replace("${calendar_month_name}$",calendar.month_name[m]).replace("${calendar_year}$",str(calendar_year))
+            # Change title in sheet
+            new_ws[top_left_cell] = title.replace("${calendar_month_name}$",calendar.month_name[m]).replace("${calendar_year}$",str(calendar_year))
+        #
+        ws[top_left_cell] = title.replace("${calendar_month_name}$",calendar.month_name[1]).replace("${calendar_year}$",str(calendar_year))
         
-        wb.save(f"{Path(__file__).stem}.xlsx")
+        workbook_name = f"{Path(__file__).stem}.xlsx"
+        logger.info(f"Saving workbook: {workbook_name}")
+        wb.save(workbook_name)
 
     except KeyError as e:
         logger.exception(f"FATAL: Missing required configuration key: {e}")

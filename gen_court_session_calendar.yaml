@@ -1,7 +1,15 @@
 # gen_court_session_calendar.yaml
 
+data:
+    calendar_year: 2025
+    judges_order:
+        - Jeffrey S. Bagley
+        - Philip C. Smith
+        - David L. Dickinson
+
 ARGBColors:
     Red: 'FFFF0000' 
+    Black : 'FF000000'
     Blue : 'FF0000FF'
     Blue_Dark : 'FF00008B'
     Blue_Light : 'FFADD8E6'
@@ -9,26 +17,30 @@ ARGBColors:
     Blue_Midnight : 'FF191970'
     Blue_Royal : 'FF4169E1'
     Blue_Custom : 'FF002060'
+    Brown : 'FFA52A2A'
+    Grey : 'FF808080'
+    Grey_Light : 'FFD3D3D3'
+    Grey_Silver : 'FFC0C0C0'
+    Grey_Dim : 'FF696969'
+    Grey_Dark_Slate : 'FF2F4F4F'
+    Grey_Custom: 'FFE7E6E6'
+    Green : 'FF008000'
     Orange : 'FFFFA500'
     Purple : 'FF800080'
-    Green : 'FF008000'
-    Black : 'FF000000'
     Violet : 'FFEE82EE'
-    Brown : 'FFA52A2A'
     White : 'FFFFFFFF'
 
 excel:
     cell_unit_per_inch: 13
 
 worksheet:
-
+    sheet_name: ${calendar_month_name}$ ${calendar_year}$
     title:
         cell_range:
             top_left_cell: A1
             bottom_right_cell: E2
             merge_cells: ByBoth
-        text: 
-            - January 2025 Superior Court Master Calendar
+        text: ${calendar_month_name}$ ${calendar_year}$ Superior Court Master Calendar
         font:
             name: Arial
             size: 16
@@ -61,8 +73,7 @@ worksheet:
             top_left_cell: A3
             bottom_right_cell: E3
             merge_cells: ByColumn
-        text: 
-            - "Presiding Superior Court Judge: Honorable Jeffrey S. Bagley"
+        text: "Presiding Superior Court Judge: Honorable ${judge}$"
         font:
             name: Arial
             size: 9
@@ -90,7 +101,7 @@ worksheet:
                 style: thick
                 color: Black
 
-    workday:
+    workday_header:
         cell_range:
             top_left_cell: A4
             bottom_right_cell: E5
@@ -128,4 +139,38 @@ worksheet:
             bottom:
                 style: thick
                 color: Black
+
+    workday:
+        cell_range:
+            top_left_cell: A6
+            bottom_right_cell: E6
+            merge_cells: None
+        text: ${calendar_day}
+        font:
+            name: Calibri
+            size: 10
+            bold: True
+            italic: False
+            color: Black
+        alignment:
+            horizontal: left
+            vertical: center
+        fill:
+            start_color: Grey_Custom
+            end_color: Grey_Custom
+            fill_type: solid
+        border:
+            left:
+                style: thick
+                color: Black
+            right:
+                style: thick
+                color: Black
+            top:
+                style: thick
+                color: Black
+            bottom:
+                style: thick
+                color: Black
+
 
