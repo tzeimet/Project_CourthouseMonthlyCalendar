@@ -1,34 +1,39 @@
-# gen_court_session_calendar.yaml
+# gen_court_session_calendar.yaml 20250921
 
 data:
     calendar_year: 2025
-    judges_order:
+    judges:
         - Jeffrey S. Bagley
         - Philip C. Smith
         - David L. Dickinson
 
-ARGBColors:
-    Red: 'FFFF0000' 
-    Black : 'FF000000'
-    Blue : 'FF0000FF'
-    Blue_Dark : 'FF00008B'
-    Blue_Light : 'FFADD8E6'
-    Blue_Navy : 'FF000080'
-    Blue_Midnight : 'FF191970'
-    Blue_Royal : 'FF4169E1'
-    Blue_Custom : 'FF002060'
-    Brown : 'FFA52A2A'
-    Grey : 'FF808080'
-    Grey_Light : 'FFD3D3D3'
-    Grey_Silver : 'FFC0C0C0'
-    Grey_Dim : 'FF696969'
-    Grey_Dark_Slate : 'FF2F4F4F'
-    Grey_Custom: 'FFE7E6E6'
-    Green : 'FF008000'
-    Orange : 'FFFFA500'
-    Purple : 'FF800080'
-    Violet : 'FFEE82EE'
-    White : 'FFFFFFFF'
+constants:
+    ARGBColors:
+        Red: 'FFFF0000' 
+        Black : 'FF000000'
+        Blue : 'FF0000FF'
+        Blue_Dark : 'FF00008B'
+        Blue_Light : 'FFADD8E6'
+        Blue_Navy : 'FF000080'
+        Blue_Midnight : 'FF191970'
+        Blue_Royal : 'FF4169E1'
+        Blue_Custom : 'FF002060'
+        Brown : 'FFA52A2A'
+        Grey : 'FF808080'
+        Grey_Light : 'FFD3D3D3'
+        Grey_Silver : 'FFC0C0C0'
+        Grey_Dim : 'FF696969'
+        Grey_Dark_Slate : 'FF2F4F4F'
+        Grey_Custom: 'FFE7E6E6'
+        Green : 'FF008000'
+        Orange : 'FFFFA500'
+        Purple : 'FF800080'
+        Violet : 'FFEE82EE'
+        White : 'FFFFFFFF'
+    worksheet:
+        MAX_ROW: 1048576
+        MAX_COLUMN: 16384
+
 
 excel:
     cell_unit_per_inch: 13
@@ -145,7 +150,7 @@ worksheet:
             top_left_cell: A6
             bottom_right_cell: E6
             merge_cells: None
-        text: ${calendar_day}
+        text: ${calendar_day}$
         font:
             name: Calibri
             size: 10
@@ -171,6 +176,39 @@ worksheet:
                 color: Black
             bottom:
                 style: thick
+                color: Black
+
+    court_session:
+        cell_range:
+            top_left_cell: A7
+            bottom_right_cell: E7
+            merge_cells: None
+        text: ${court_session}$
+        font:
+            name: Calibri
+            size: 8
+            bold: False
+            italic: False
+            color: Black
+        alignment:
+            horizontal: left
+            vertical: center
+        fill:
+            start_color: White
+            end_color: White
+            fill_type: solid
+        border:
+            left:
+                style: thick
+                color: Black
+            right:
+                style: thick
+                color: Black
+            top:
+                style: null
+                color: Black
+            bottom:
+                style: null
                 color: Black
 
 

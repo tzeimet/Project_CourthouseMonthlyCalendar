@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<NotepadPlus>
+    <Session activeView="0">
+        <mainView activeIndex="2">
+            <File firstVisibleLine="0" xOffset="0" scrollWidth="2397" startPos="0" endPos="0" selMode="0" offset="0" wrapCount="1" lang="INI file" encoding="-1" userReadOnly="no" filename="P:\Project_CourthouseMonthlyCalendar\gen_court_session_calendar.ini" backupFilePath="" originalFileLastModifTimestamp="-1000487493" originalFileLastModifTimestampHigh="31205936" tabColourId="-1" RTL="no" tabPinned="no" mapFirstVisibleDisplayLine="-1" mapFirstVisibleDocLine="-1" mapLastVisibleDocLine="-1" mapNbLine="-1" mapHigherPos="-1" mapWidth="-1" mapHeight="-1" mapKByteInDoc="512" mapWrapIndentMode="-1" mapIsWrap="no" />
+            <File firstVisibleLine="0" xOffset="0" scrollWidth="626" startPos="0" endPos="0" selMode="0" offset="0" wrapCount="1" lang="YAML" encoding="-1" userReadOnly="no" filename="P:\Project_CourthouseMonthlyCalendar\gen_court_session_calendar.yaml" backupFilePath="" originalFileLastModifTimestamp="-192973470" originalFileLastModifTimestampHigh="31205986" tabColourId="-1" RTL="no" tabPinned="no" mapFirstVisibleDisplayLine="-1" mapFirstVisibleDocLine="-1" mapLastVisibleDocLine="-1" mapNbLine="-1" mapHigherPos="-1" mapWidth="-1" mapHeight="-1" mapKByteInDoc="512" mapWrapIndentMode="-1" mapIsWrap="no" />
+            <File firstVisibleLine="0" xOffset="0" scrollWidth="2177" startPos="42" endPos="42" selMode="0" offset="0" wrapCount="1" lang="Python" encoding="-1" userReadOnly="no" filename="P:\Project_CourthouseMonthlyCalendar\gen_court_session_calendar.py" backupFilePath="" originalFileLastModifTimestamp="1526791742" originalFileLastModifTimestampHigh="31205987" tabColourId="-1" RTL="no" tabPinned="no" mapFirstVisibleDisplayLine="-1" mapFirstVisibleDocLine="-1" mapLastVisibleDocLine="-1" mapNbLine="-1" mapHigherPos="-1" mapWidth="-1" mapHeight="-1" mapKByteInDoc="512" mapWrapIndentMode="-1" mapIsWrap="no" />
+        </mainView>
+        <subView activeIndex="0" />
+    </Session>
+</NotepadPlus>

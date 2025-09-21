@@ -5,5 +5,5 @@ deactivate.cmd
 
 *.xlsx
 *.xlsx#
-.log
+*.log
 

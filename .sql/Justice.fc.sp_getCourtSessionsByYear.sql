@@ -230,6 +230,8 @@ begin
     ,CalendarDescription
     ,JudicialOfficerCode
     ,JudicialOfficerDescription
+    ,CourtRoomCode
+    ,CourtRoomDescription
   from
     #CtSessionCourtHouse
   where
