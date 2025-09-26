@@ -107,4 +107,11 @@ uv sync
 ::============================================================================
 :: Run Python Code
 ::============================================================================
-
+cls & uv run python gen_court_session_calendar.py
+::============================================================================
+:: ToDos:
+::============================================================================
+-	Add Holidays and Special Dates to top of Month workdays as sessions.
+-	Combine same session accros workdays.
+-	Abbreviate court session description with Description Key.
+-	Colorize court sessions based on judge.

@@ -19,39 +19,98 @@ data:
         -   name: Jame A. Dunn
             odyssey_code: JAD
             color: Green_JAD
-    hoiddays:
-        -   name:   MLK JR HOLIDAY
-            date:   2025-01-20
-            color:  White
-        -   name:   MEMORIAL DAY HOLIDAY
-            date:   2025-05-26
-            color:  White
-        -   name:   LABOR DAY
-            date:   2025-09-01
-            color:  White
-        -   name:   CHRISTMAS EVE
-            date:   2025-12-24
-            color:  White
-        -   name:   CHRISTMAS DAY
-            date:   2025-12-25
-            color:  White
     special_dates:
-        -   name: SPRING BREAK
+        -   name:       NEW YEAR'S DAY
+            date:       2025-01-01
+            color:      White
+        -   name:       MLK JR HOLIDAY
+            date:       2025-01-20
+            color:      White
+        -   name:       MEMORIAL DAY HOLIDAY
+            date:       2025-05-26
+            color:      White
+        -   name:       LABOR DAY
+            date:       2025-09-01
+            color:      White
+        -   name:       CHRISTMAS EVE
+            date:       2025-12-24
+            color:      White
+        -   name:       CHRISTMAS DAY
+            date:       2025-12-25
+            color:      White
+# Grand Jury Dates
+        -   name:       GRAND JURY-R
+            date:       2025-01-13
+            color:      Red_Bold
+        -   name:       GRAND JURY-R
+            date:       2025-02-10
+            color:      Red_Bold
+        -   name:       GRAND JURY-N (D)
+            date:       2025-03-10
+            color:      Red_Bold
+        -   name:       GRAND JURY-R
+            date:       2025-04-07
+            color:      Red_Bold
+        -   name:       GRAND JURY-R
+            date:       2025-04-14
+            color:      Red_Bold
+        -   name:       GRAND JURY-R
+            date:       2025-04-14
+            color:      Red_Bold
+        -   name:       GRAND JURY-R
+            date:       2025-05-12
+            color:      Red_Bold
+        -   name:       GRAND JURY-R
+            date:       2025-06-09
+            color:      Red_Bold
+        -   name:       GRAND JURY-R
+            date:       2025-07-14
+            color:      Red_Bold
+        -   name:       GRAND JURY-R
+            date:       2025-08-11
+            color:      Red_Bold
+        -   name:       GRAND JURY-R
+            date:       2025-09-08
+            color:      Red_Bold
+        -   name:       GRAND JURY-R
+            date:       2025-10-13
+            color:      Red_Bold
+        -   name:       GRAND JURY-R
+            date:       2025-07-14
+            color:      Red_Bold
+        -   name:       GRAND JURY-N (B)
+            date:       2025-11-10
+            color:      Red_Bold
+        -   name:       GRAND JURY-R
+            date:       2025-12-08
+            color:      Red_Bold
+#
+        -   name:       SPRING BREAK
             begin_date: 2025-03-31
             end_date:   2025-04-04
-            color:       Black
-        -   name: THANKSGIVING BREAK
-            begin_date: 2025-11-24
+            color:      Black
+        -   name:       THANKSGIVING BREAK
+            begin_date: 2025-11-25
             end_date:   2025-11-28
-            color:       Black
-        -   name: WINTER BREAK
+            color:      Black
+        -   name:       WINTER BREAK
             begin_date: 2025-12-22
             end_date:   2025-12-31
-            color:       Black
-        -   name: FALL BREAK
-            start_date: 2025-09-22
+            color:      Black
+        -   name:       FALL BREAK
+            begin_date: 2025-09-22
             end_date:   2025-09-26
-            color:       Black
+            color:      Black
+        -   name:       WINTER CSCJ CONFERENCE
+            begin_date: 2025-01-21
+            end_date:   2025-01-24
+            color:      None
+            fill:       Black
+        -   name:       AV Upgrade Courtroom 402 - Courtroom 502 reserved for Judge Dunn
+            begin_date: 2025-12-01
+            end_date:   2025-12-12
+            color:      Black
+            fill:       Yellow
     sessions_mapping:
         -   
             -   SU CR SP SET JURY TRIAL

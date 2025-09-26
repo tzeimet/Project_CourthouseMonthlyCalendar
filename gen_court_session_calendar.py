@@ -1,8 +1,8 @@
-# gen_court_session_calendar.py 20250925
+# gen_court_session_calendar.py 20250926
 
 import calendar
 import configparser
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import duckdb
 from enum import Enum
 from icecream import ic
@@ -95,18 +95,14 @@ def read_yaml_configuration(yamlFilename: str):
         ymldata = yaml.safe_load(file)
     return(ymldata)
 #--------------------------------------------------------------------------------------------------
-def find_first_matching_cell_old(worksheet: Worksheet, column_letter: str, text: str, row_max: int = MAX_ROW):
-    """
-    Finds the first row index (1-based) with the given text in the given column.
-    """
-    row_num = 1  # Start checking from the first row
-    while worksheet[f'{column_letter}{row_num}'].value != text and row_num < row_max :
-        row_num += 1
-    if not row_num < row_max:
-        return None
-    # Return the cell object or the row number
-    # return sheet[f'{column_letter}{row_num}']
-    return row_num
+def get_date_range(start_date: date, end_date: date):
+    """Generates a list of dates between a start and end date (inclusive)."""
+    date_list = []
+    current_date = start_date
+    while current_date <= end_date:
+        date_list.append(current_date)
+        current_date += timedelta(days=1)
+    return date_list
 #--------------------------------------------------------------------------------------------------
 def find_first_matching_cell(worksheet: Worksheet, column_letter: str, text: str):
     """
@@ -121,12 +117,12 @@ def find_first_matching_cell(worksheet: Worksheet, column_letter: str, text: str
     logger.debug(f"No empty cell found in column {column_letter} up to row {worksheet.max_row + 1}.")
     return None
 #--------------------------------------------------------------------------------------------------
-def find_first_matching_cell_by_col_idx(worksheet: Worksheet, column_idx: int, text: str):
+def find_first_matching_cell_by_col_idx(worksheet: Worksheet, column_idx: int, text: str,start_row: int = 1):
     """
     Finds the first row index (1-based) with the given text in the given column.
     Returns the row number of the matching cell or None.
     """
-    for row_num in range(1,worksheet.max_row+2):
+    for row_num in range(start_row,worksheet.max_row+2):
         cell = worksheet.cell(row_num,column_idx)
 #        if cell.value is None or cell.value == '' or cell.value == text:
         if cell.value == text:
@@ -569,6 +565,63 @@ def main(
         # Save workboot for debugging.
         wb.save("wb3.xlsx")
         
+        # Add Hoidays and Special Dates to calendar.
+        special_dates = []
+        #breakpoint()
+        for sp_dt in yaml_config['data']['special_dates']:
+            if sp_dt.get('date',None):
+                special_dates.append(sp_dt)
+            else:
+                for dt in get_date_range(sp_dt['begin_date'],sp_dt['end_date']):
+                    new_sp_dt = {
+                        'name': sp_dt['name']
+                        ,'date': dt
+                        ,'color': sp_dt['color']
+                    }
+                    special_dates.append(new_sp_dt)
+        # For each sheet (month) add court sessions to the month_days.
+        court_session_placeholder = '${court_session}$'  ### put in yaml_config
+        #breakpoint()
+        for calendar_date in [cal_dt for cal_dt in special_dates]:
+            # Select the worksheet by index from the month of calendar_date.
+            year = calendar_date['date'].year
+            month = calendar_date['date'].month
+            month_day = calendar_date['date'].day
+            ws = wb.worksheets[month-1]
+            month_num_days = calendar.monthrange(year, month)[1]
+            # Continue, year = calendar_year and if a weekend.
+            workday = get_weekday_number(year,month,month_day)
+            print(f"{year=}, {month=}, {month_day=}, {workday=}, {calendar_date=}")
+            if year != calendar_year or workday > 5:
+                continue
+            if month_day > month_num_days:
+                continue # Continue to next calendar_date
+            # Locate the month in the work_day column.
+            row_num = find_first_matching_cell_by_col_idx(ws,workday,month_day)
+            # Locate the court session placeholder.
+            row_num = find_first_matching_cell_by_col_idx(ws,workday,court_session_placeholder,start_row=row_num)
+            if row_num is None:
+                logger.error(f"{month=},{month_day=},{workday=},{row_num=},{day_sessions=}")
+                wb.save("wb-error.xlsx")
+                breakpoint()
+                raise Exception(f"Unable to locate court session placeholder. {month=}, {month_day=}, {workday=}")
+            # Add the calendar_date.
+            # then add a new row of placeholders.
+            if ws.cell(row_num+1,workday).value != court_session_placeholder:
+                # Add court session another row to the sheet.
+                ws.insert_rows(row_num+1, amount=1)
+                # Copy cells to new rows.
+                # This copies the court placeholders from the previous cells.
+                # This row will have just the court session placeholder in each cell. (Could just set the cell values to the placeholder???
+                for col in range(1,6):
+                    copy_cell(ws.cell(row_num,col),ws.cell(row_num+1,col))
+            ws.cell(row_num,workday).value = calendar_date['name']
+         
+        # Save workboot for debugging.
+        wb.save("wb4a.xlsx")
+        
+        #breakpoint()
+        
         # Get the courts sessions from Odyssey DB for the calendar year.
         court_sessions_df = get_odyssey_court_sessions_by_year(calendar_year,config)
         court_session_list = convert_df_to_list(court_sessions_df,yaml_config)
@@ -581,11 +634,14 @@ def main(
             month_num_days = calendar.monthrange(calendar_year, month)[1]
             for month_day in range(1,month_num_days+1):
                 # Get the workday for the month_day.
-                # Break, if a weekend.
-                if (workday := get_weekday_number(calendar_year,month,month_day)) > 5:
+                # Continue, if a weekend.
+                workday = get_weekday_number(calendar_year,month,month_day)
+                if workday > 5:
                     continue
+                # Locate the month in the work_day column.
+                row_num = find_first_matching_cell_by_col_idx(ws,workday,month_day)
                 # Locate the court session placeholder.
-                row_num = find_first_matching_cell_by_col_idx(ws,workday,court_session_placeholder)
+                row_num = find_first_matching_cell_by_col_idx(ws,workday,court_session_placeholder,start_row=row_num)
                 if row_num is None:
                     logger.error(f"{month=},{month_day=},{workday=},{row_num=},{day_sessions=}")
                     wb.save("wb-error.xlsx")
@@ -630,7 +686,7 @@ def main(
             #break # month loop
              
         # Save workboot for debugging.
-        wb.save("wb4.xlsx")
+        wb.save("wb4b.xlsx")
         
         # For each month (sheet):
         #   - Remove all court session placeholders.
