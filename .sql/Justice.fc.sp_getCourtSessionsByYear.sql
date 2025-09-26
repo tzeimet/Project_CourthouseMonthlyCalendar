@@ -11,7 +11,7 @@ go
 
 alter procedure fc.sp_getCourtSessionsByYear
 -- declare
-  @pMonth int = 9
+  @pMonthOrYear int = 9  -- @pMonthOrYear = month for testing.
 as
 begin
   SET NOCOUNT ON;
@@ -19,16 +19,28 @@ begin
     @vBeginDate date
     ,@vEndDate date
 
-  if @pMonth is null or @pMonth < 1 or @pMonth > 12
+  -- Check if @pMonthOrYear if current year s/b used.r
+  if (
+    @pMonthOrYear is null 
+    or @pMonthOrYear < 1 
+    or @pMonthOrYear > 12
+  )
+  and @pMonthOrYear < 2024
   begin
     select
-      @vBeginDate = datefromparts(year(getdate())-1,12,1)
+      @vBeginDate = datefromparts(year(getdate()),12,1)
       ,@vEndDate = datefromparts(year(getdate()),12,31)
-  end -- if
+  end -- if a 4-digit year
+  else if @pMonthOrYear >= 2024
+  begin
+    select
+      @vBeginDate = datefromparts(@pMonthOrYear,1,1)
+      ,@vEndDate = datefromparts(@pMonthOrYear,12,31)
+  end
   else
   begin
     select
-      @vBeginDate = datefromparts(year(getdate()),@pMonth,1)
+      @vBeginDate = datefromparts(year(getdate()),@pMonthOrYear,1)
       ,@vEndDate = eomonth(@vBeginDate)
   end -- else
 
@@ -274,9 +286,12 @@ order by
 
 /*
 exec Justice.fc.sp_getCourtSessionsByYear
-  @pMonth=9
+  @pMonthOrYear=9
 ;
 exec Justice.fc.sp_getCourtSessionsByYear
-  @pMonth=0
+  @pMonthOrYear=2025
+;
+exec Justice.fc.sp_getCourtSessionsByYear
+  @pMonthOrYear=0
 ;
 */

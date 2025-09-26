@@ -1,4 +1,5 @@
 # .gitignore
+# git ls-tree -r --name-only HEAD
 
 activate.cmd
 deactivate.cmd
@@ -6,4 +7,8 @@ deactivate.cmd
 *.xlsx
 *.xlsx#
 *.log
+.~*.*
+
+# Exceptions
+!Monthly Calendar INTERNAL 2025..xlsx
 

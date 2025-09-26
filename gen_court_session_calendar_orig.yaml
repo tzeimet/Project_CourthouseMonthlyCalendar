@@ -35,23 +35,23 @@ data:
         -   name:   CHRISTMAS DAY
             date:   2025-12-25
             color:  White
-    special_dates:
-        -   name: SPRING BREAK
+     special_dates:
+       -   name: SPRING BREAK
             begin_date: 2025-03-31
             end_date:   2025-04-04
-            color:       Black
+           color:       Black
         -   name: THANKSGIVING BREAK
             begin_date: 2025-11-24
             end_date:   2025-11-28
-            color:       Black
+           color:       Black
         -   name: WINTER BREAK
             begin_date: 2025-12-22
             end_date:   2025-12-31
-            color:       Black
+           color:       Black
         -   name: FALL BREAK
             start_date: 2025-09-22
             end_date:   2025-09-26
-            color:       Black
+           color:       Black
     sessions_mapping:
         -   
             -   SU CR SP SET JURY TRIAL
@@ -64,10 +64,6 @@ data:
         -   
             -   SU CV SP SET BENCH TRIAL
             -   SUPERIOR COURT SPECIAL SET CIVIL BENCH TRIAL (${JudicialOfficer}$-$CourtRoom}
-            -   0
-        -   
-            -   SU CV BENCH TRIAL
-            -   SUPERIOR COURT CIVIL BENCH TRIALS (${JudicialOfficer}$-$CourtRoom}$)
             -   0
         -   
             -   SU CV BENCH TRIALS
@@ -120,10 +116,14 @@ constants:
         Violet: 'FFEE82EE'
         White: 'FFFFFFFF'
         Gold_KMC: 'FFBF9000'
+
     worksheet:
         MAX_ROW: 1048576
         MAX_COLUMN: 16384
-        EXCEL_CELL_UNIT_PER_INCH: 13
+
+
+excel:
+    cell_unit_per_inch: 13
 
 worksheet:
     sheet_name: ${calendar_month_name}$ ${calendar_year}$

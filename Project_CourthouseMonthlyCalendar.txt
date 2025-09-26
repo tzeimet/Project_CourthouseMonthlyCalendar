@@ -78,7 +78,7 @@ uv venv
 echo .venv\Scripts\activate.bat >activate.cmd
 echo .venv\Scripts\deactivate.bat >deactivate.cmd
 ::============================================================================
-:: Activation UV environment.
+:: Activation UV environment. 
 ::============================================================================
 activate.cmd
 ::============================================================================
