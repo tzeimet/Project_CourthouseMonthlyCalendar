@@ -206,122 +206,191 @@ def convert_df_to_list(df: DataFrame,yaml_config) -> list:
     court_session_list = []
     try:
         # Create a connection to an in memory DuckDB DB.
-        ddb_conn = duckdb.connect(database=':memory:')
+        #ddb_conn = duckdb.connect(database=':memory:')
+        ddb_conn = duckdb.connect(database=r'.zsandbox\court_calendar.db')
+        #
+        # Get the judges from the YAML configuration
+        judges = []
+        judges = yaml_config['data']['superior_judges'] + yaml_config['data']['state_judges']
+        # Create table and insert the judges
+        DUCKDB_TABLE_NAME = "judge"
+        ddb_conn.sql(f"""
+drop table if exists {DUCKDB_TABLE_NAME};
+CREATE TABLE {DUCKDB_TABLE_NAME} (
+    Name VARCHAR
+    ,OysseyCode VARCHAR
+    ,Color VARCHAR
+ );
+        """)
+        # Insert the judges
+        # DuckDB handles the list insertion automatically when passed as a parameter.
+        for record in judges:
+            ordered_values = (
+                record['name']
+                ,record['odyssey_code']
+                ,record['color']
+            )
+            ddb_conn.execute(f"INSERT INTO {DUCKDB_TABLE_NAME} VALUES (?, ?, ?)", ordered_values)
+        #
+        #
+        # Get the Special Dates from the YAML configuration
+        special_dates = []
+        #breakpoint()
+        for sp_dt in yaml_config['data']['special_dates']:
+            if sp_dt.get('date',None):
+                special_dates.append(sp_dt)
+            else:
+                for dt in get_date_range(sp_dt['begin_date'],sp_dt['end_date']):
+                    new_sp_dt = {
+                        'name': sp_dt['name']
+                        ,'date': dt
+                        ,'color': sp_dt['color']
+                        ,'display_order': sp_dt['display_order']
+                    }
+                    special_dates.append(new_sp_dt)
+        # Create table and insert the special dates.
+        DUCKDB_TABLE_NAME = "special_date"
+        ddb_conn.sql(f"""
+drop table if exists {DUCKDB_TABLE_NAME};
+CREATE TABLE {DUCKDB_TABLE_NAME} (
+    Name VARCHAR
+    ,Date DATE
+    ,Color VARCHAR
+    ,DisplayOrder int
+ );
+        """)
+        # Insert the special_dates.
+        # DuckDB handles the list insertion automatically when passed as a parameter.
+        for record in special_dates:
+            ordered_values = (
+                record['name'] 
+                ,record['date'] 
+                ,record['color']
+                ,record['display_order']
+            )
+            ddb_conn.execute(f"INSERT INTO {DUCKDB_TABLE_NAME} VALUES (?, ?, ?, ?)", ordered_values)
+        #
         # Get the Court Session mappings from the YAML configuration.
         courtsession_mapping_list = yaml_config['data']['sessions_mapping']
         # Create the table schema first
         DUCKDB_TABLE_NAME = "courtsession_mapping"
         ddb_conn.sql(f"""
-            drop table if exists {DUCKDB_TABLE_NAME};
-            CREATE TABLE {DUCKDB_TABLE_NAME} (
-                OdysseyCourtSession VARCHAR
-                ,CalendarFormat VARCHAR
-                ,DisplayOrder int
-            );
+drop table if exists {DUCKDB_TABLE_NAME};
+CREATE TABLE {DUCKDB_TABLE_NAME} (
+    OdysseyCourtSession VARCHAR
+    ,CalendarFormat VARCHAR
+    ,DisplayOrder int
+);
         """)
         # Insert the entire list of records using the built-in VALUES clause
         # DuckDB handles the list insertion automatically when passed as a parameter.
         for record in courtsession_mapping_list:
-            ddb_conn.execute(f"INSERT INTO {DUCKDB_TABLE_NAME} VALUES (?, ?, ?)", record)
-        # Create DB table from DataFramedf.
-        ddb_conn.sql("CREATE TABLE courtsession AS SELECT * FROM df;")
-        # Create a list of the court sessions transitioned via the mapping 
-        # and reulting in a the form needed to be displayed in the calendar.
+            ordered_values = (
+                record['odyssey_name'] 
+                ,record['calendar_name'] 
+                ,record['display_order']
+            )
+            ddb_conn.execute(f"INSERT INTO {DUCKDB_TABLE_NAME} VALUES (?, ?, ?)", ordered_values)
+        #
+        # Create Court Sessions DB table from DataFramedf.
+        DUCKDB_TABLE_NAME = 'courtsession'
+        ddb_conn.sql(f"""
+            drop table if exists {DUCKDB_TABLE_NAME};
+            CREATE TABLE {DUCKDB_TABLE_NAME} AS SELECT * FROM df;
+        """)
+        # Create a list of the court sessions transitioned via the mapping and special_dates
+        # and resulting in a the form needed to be displayed in the calendar.
         sql_qry = """
-            drop table if exists tmp_courtsessions;
-            CREATE TEMPORARY TABLE tmp_courtsessions AS
-            select
-              strftime(SessionDate,'%Y-%m-%d') as SessionDate
-              ,StartTime as StartTime
-              ,SessionDescription as SessionDescription_orig
-              ,cs.JudicialOfficerCode
-              ,replace(
-                replace(
-                  CalendarFormat
-                  ,'$CourtRoom}$'
-                  ,CourtRoomCode
-                )
-                ,'${JudicialOfficer}$'
-                ,cs.JudicialOfficerCode
-              ) as SessionDescription
-              ,DisplayOrder as DisplayOrder
-            from
-              courtsession cs 
-              left outer join courtsession_mapping cs_m 
-              on
-                cs.SessionDescription ilike concat(
-                  '%'
-                  ,replace(
-                    replace(
-                      cs_m.OdysseyCourtSession
-                      ,'-'
-                      ,''
-                    )
-                    ,' '
-                    ,'%'
-                  )
-                  ,'%'
-                )
-            ;
-            -- select * from courtsession;
-            -- select * from tmp_courtsessions;
-            select
-                cs.SessionDate
-                ,cs.StartTime
-                ,cs.SessionDescription_orig
-                ,cs.SessionDescription
-                ,cs.JudicialOfficerCode
-            from
-              (
-                select
-                  SessionDate
-                  ,StartTime
-                  ,SessionDescription_orig
-                  ,SessionDescription
-                  ,JudicialOfficerCode
-                  ,0 as DisplayOrder0
-                  ,DisplayOrder
-                from
-                  tmp_courtsessions
-                where
-                  SessionDescription is not null
-                union
-                select
-                  SessionDate
-                  ,StartTime
-                  ,SessionDescription_orig
-                  ,concat(
-                    strftime(
-                      concat(
-                        '2025-01-01 '
-                        ,StartTime
-                      )::datetime
-                      ,'%-I:%M '
-                    )
-                    ,regexp_replace(
-                      SessionDescription_orig
-                      ,'\\([A-Z]{3}\\) '
-                      ,''
-                    )
-                    ,' ('
-                    ,left(reverse(JudicialOfficerCode),1)
-                    ,')'
-                  ) as SessionDescription
-                  ,JudicialOfficerCode
-                  ,1 as DisplayOrder0
-                  ,DisplayOrder
-                from
-                  tmp_courtsessions
-                where
-                  SessionDescription is null
-              ) cs
-            order by
-              cs.SessionDate
-              ,cs.DisplayOrder0
-              ,cs.DisplayOrder
-              ,cs.StartTime
-              ,cs.SessionDescription
-            ;
+drop table if exists tmp_courtsession;
+CREATE TEMPORARY TABLE tmp_courtsession
+(
+  SessionDate date
+  ,StartTime varchar
+  ,SessionDescription varchar
+  ,Color varchar
+  ,JudicialOfficerCode varchar
+  ,DisplayOrder int
+);
+insert into
+  tmp_courtsession
+select
+  strftime(SessionDate,'%Y-%m-%d') as SessionDate
+  ,cs.StartTime as StartTime
+  ,case 
+    when cs_m.CalendarFormat is not null
+    then
+      replace(
+        replace(
+          cs_m.CalendarFormat
+          ,'$CourtRoom}$'
+          ,cs.CourtRoomCode
+        )
+        ,'${JudicialOfficer}$'
+        ,cs.JudicialOfficerCode
+      )
+    else 
+      concat(
+        strftime(
+          concat(
+            '2025-01-01 '
+            ,cs.StartTime
+          )::datetime
+          ,'%-I:%M '
+        )
+        ,regexp_replace(
+          cs.SessionDescription
+          ,'\\([A-Z]{3}\\) '
+          ,''
+        )
+        ,' ('
+        ,left(reverse(cs.JudicialOfficerCode),1)
+        ,')'
+      )
+  end as SessionDescription
+  ,j.Color as Color
+  ,cs.JudicialOfficerCode as JudicialOfficerCode
+  ,if(cs_m.DisplayOrder is null,3,cs_m.DisplayOrder) as DisplayOrder
+from
+  courtsession cs 
+  left outer join judge j
+  on
+   j.OysseyCode = cs.JudicialOfficerCode
+  left outer join courtsession_mapping cs_m 
+  on
+    cs.SessionDescription ilike concat(
+      '%'
+      ,replace(
+        replace(
+          cs_m.OdysseyCourtSession
+          ,'-'
+          ,''
+        )
+        ,' '
+        ,'%'
+      )
+      ,'%'
+    )
+union
+select
+  strftime(Date,'%Y-%m-%d') as SessionDate
+  ,'' as StartTime
+  ,Name as SessionDescription
+  ,Color as Color
+  ,'' as JudicialOfficerCode
+  ,DisplayOrder as DisplayOrder
+from
+  special_date
+;
+select
+  *
+from
+  tmp_courtsession
+order by
+  SessionDate
+  ,DisplayOrder
+  ,StartTime
+  ,SessionDescription
+;
         """
         court_session_list = ddb_conn.execute(sql_qry).fetchall()
 #    except CatalogException as e:
@@ -565,69 +634,14 @@ def main(
         # Save workboot for debugging.
         wb.save("wb3.xlsx")
         
-        # Add Hoidays and Special Dates to calendar.
-        special_dates = []
-        #breakpoint()
-        for sp_dt in yaml_config['data']['special_dates']:
-            if sp_dt.get('date',None):
-                special_dates.append(sp_dt)
-            else:
-                for dt in get_date_range(sp_dt['begin_date'],sp_dt['end_date']):
-                    new_sp_dt = {
-                        'name': sp_dt['name']
-                        ,'date': dt
-                        ,'color': sp_dt['color']
-                    }
-                    special_dates.append(new_sp_dt)
-        # For each sheet (month) add court sessions to the month_days.
-        court_session_placeholder = '${court_session}$'  ### put in yaml_config
-        #breakpoint()
-        for calendar_date in [cal_dt for cal_dt in special_dates]:
-            # Select the worksheet by index from the month of calendar_date.
-            year = calendar_date['date'].year
-            month = calendar_date['date'].month
-            month_day = calendar_date['date'].day
-            ws = wb.worksheets[month-1]
-            month_num_days = calendar.monthrange(year, month)[1]
-            # Continue, year = calendar_year and if a weekend.
-            workday = get_weekday_number(year,month,month_day)
-            print(f"{year=}, {month=}, {month_day=}, {workday=}, {calendar_date=}")
-            if year != calendar_year or workday > 5:
-                continue
-            if month_day > month_num_days:
-                continue # Continue to next calendar_date
-            # Locate the month in the work_day column.
-            row_num = find_first_matching_cell_by_col_idx(ws,workday,month_day)
-            # Locate the court session placeholder.
-            row_num = find_first_matching_cell_by_col_idx(ws,workday,court_session_placeholder,start_row=row_num)
-            if row_num is None:
-                logger.error(f"{month=},{month_day=},{workday=},{row_num=},{day_sessions=}")
-                wb.save("wb-error.xlsx")
-                breakpoint()
-                raise Exception(f"Unable to locate court session placeholder. {month=}, {month_day=}, {workday=}")
-            # Add the calendar_date.
-            # then add a new row of placeholders.
-            if ws.cell(row_num+1,workday).value != court_session_placeholder:
-                # Add court session another row to the sheet.
-                ws.insert_rows(row_num+1, amount=1)
-                # Copy cells to new rows.
-                # This copies the court placeholders from the previous cells.
-                # This row will have just the court session placeholder in each cell. (Could just set the cell values to the placeholder???
-                for col in range(1,6):
-                    copy_cell(ws.cell(row_num,col),ws.cell(row_num+1,col))
-            ws.cell(row_num,workday).value = calendar_date['name']
-         
-        # Save workboot for debugging.
-        wb.save("wb4a.xlsx")
-        
-        #breakpoint()
-        
-        # Get the courts sessions from Odyssey DB for the calendar year.
+        # Get the courts sessions from Odyssey DB for the calendar year,
+        # plus the special_dates.
         court_sessions_df = get_odyssey_court_sessions_by_year(calendar_year,config)
         court_session_list = convert_df_to_list(court_sessions_df,yaml_config)
         # For each sheet (month) add court sessions to the month_days.
         # The month day sessions cells are indicated by '${calendar_day}$ placeholder.
         court_session_placeholder = '${court_session}$'  ### put in yaml_config
+        breakpoint()
         for month in range(1,13):
             # Select the worksheet by index.
             ws = wb.worksheets[month-1]
@@ -653,7 +667,7 @@ def main(
                         ws.cell(row_num,wd).value = None
                 if month_day > month_num_days:
                     break # Break to next month
-                day_sessions = [row for row in court_session_list if row[0].startswith(f'{calendar_year}-{month:02d}-{month_day:02d}')]
+                day_sessions = [row for row in court_session_list if row[0] == datetime.strptime(f'{calendar_year}-{month:02d}-{month_day:02d}','%Y-%m-%d').date()]
                 if day_sessions:
                     # For the current month_day, add its court_sessions.
                     day_row_num = 0
@@ -668,7 +682,7 @@ def main(
                             # This row will have just the court session placeholder in each cell. (Could just set the cell values to the placeholder???
                             for col in range(1,6):
                                 copy_cell(ws.cell(row_num+day_row_num,col),ws.cell(row_num+day_row_num+1,col))
-                        session_description, judicial_officer = day_session[3],day_session[4]
+                        session_description, judicial_officer = day_session[2],day_session[4]
                         ws.cell(row_num+day_row_num,workday).value = session_description
                         day_row_num += 1
                     row_num += day_row_num

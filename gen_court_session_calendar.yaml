@@ -3,155 +3,183 @@
 data:
     calendar_year: 2025
     superior_judges:
-        -   name: Jeffrey S. Bagley
-            odyssey_code: JSB
-            color: Red
-        -   name: Philip C. Smith
-            odyssey_code: PCS
-            color: Blue_PCS
-        -   name: David L. Dickinson
-            odyssey_code: DLD
-            color: Purple_DLD
+        -   name:           Jeffrey S. Bagley
+            odyssey_code:   JSB
+            color:          Red
+        -   name:           Philip C. Smith
+            odyssey_code:   PCS
+            color:          Blue_PCS
+        -   name:           David L. Dickinson
+            odyssey_code:   DLD
+            color:          Purple_DLD
     state_judges:
-        -   name: T.Russel McClelland, III S. Bagley
-            odyssey_code: TRM
-            color: Black
-        -   name: Jame A. Dunn
-            odyssey_code: JAD
-            color: Green_JAD
-    special_dates:
-        -   name:       NEW YEAR'S DAY
-            date:       2025-01-01
-            color:      White
-        -   name:       MLK JR HOLIDAY
-            date:       2025-01-20
-            color:      White
-        -   name:       MEMORIAL DAY HOLIDAY
-            date:       2025-05-26
-            color:      White
-        -   name:       LABOR DAY
-            date:       2025-09-01
-            color:      White
-        -   name:       CHRISTMAS EVE
-            date:       2025-12-24
-            color:      White
-        -   name:       CHRISTMAS DAY
-            date:       2025-12-25
-            color:      White
-# Grand Jury Dates
-        -   name:       GRAND JURY-R
-            date:       2025-01-13
-            color:      Red_Bold
-        -   name:       GRAND JURY-R
-            date:       2025-02-10
-            color:      Red_Bold
-        -   name:       GRAND JURY-N (D)
-            date:       2025-03-10
-            color:      Red_Bold
-        -   name:       GRAND JURY-R
-            date:       2025-04-07
-            color:      Red_Bold
-        -   name:       GRAND JURY-R
-            date:       2025-04-14
-            color:      Red_Bold
-        -   name:       GRAND JURY-R
-            date:       2025-04-14
-            color:      Red_Bold
-        -   name:       GRAND JURY-R
-            date:       2025-05-12
-            color:      Red_Bold
-        -   name:       GRAND JURY-R
-            date:       2025-06-09
-            color:      Red_Bold
-        -   name:       GRAND JURY-R
-            date:       2025-07-14
-            color:      Red_Bold
-        -   name:       GRAND JURY-R
-            date:       2025-08-11
-            color:      Red_Bold
-        -   name:       GRAND JURY-R
-            date:       2025-09-08
-            color:      Red_Bold
-        -   name:       GRAND JURY-R
-            date:       2025-10-13
-            color:      Red_Bold
-        -   name:       GRAND JURY-R
-            date:       2025-07-14
-            color:      Red_Bold
-        -   name:       GRAND JURY-N (B)
-            date:       2025-11-10
-            color:      Red_Bold
-        -   name:       GRAND JURY-R
-            date:       2025-12-08
-            color:      Red_Bold
-#
-        -   name:       SPRING BREAK
-            begin_date: 2025-03-31
-            end_date:   2025-04-04
-            color:      Black
-        -   name:       THANKSGIVING BREAK
-            begin_date: 2025-11-25
-            end_date:   2025-11-28
-            color:      Black
-        -   name:       WINTER BREAK
-            begin_date: 2025-12-22
-            end_date:   2025-12-31
-            color:      Black
-        -   name:       FALL BREAK
-            begin_date: 2025-09-22
-            end_date:   2025-09-26
-            color:      Black
-        -   name:       WINTER CSCJ CONFERENCE
-            begin_date: 2025-01-21
-            end_date:   2025-01-24
-            color:      None
-            fill:       Black
-        -   name:       AV Upgrade Courtroom 402 - Courtroom 502 reserved for Judge Dunn
-            begin_date: 2025-12-01
-            end_date:   2025-12-12
-            color:      Black
-            fill:       Yellow
+        -   name:           T.Russel McClelland, III S. Bagley
+            odyssey_code:   TRM
+            color:          Black
+        -   name:           Jame A. Dunn
+            odyssey_code:   JAD
+            color:          Green_JAD
     sessions_mapping:
-        -   
-            -   SU CR SP SET JURY TRIAL
-            -   SUPERIOR COURT SPECIAL SET CRIMINAL JURY TRIAL (${JudicialOfficer}$-$CourtRoom}$)
-            -   0
-        -   
-            -   SU CR JURY TRIALS
-            -   SUPERIOR COURT CRIMINAL JURY TRIAL (${JudicialOfficer}$-$CourtRoom}$)
-            -   0
-        -   
-            -   SU CV SP SET BENCH TRIAL
-            -   SUPERIOR COURT SPECIAL SET CIVIL BENCH TRIAL (${JudicialOfficer}$-$CourtRoom}
-            -   0
-        -   
-            -   SU CV BENCH TRIAL
-            -   SUPERIOR COURT CIVIL BENCH TRIALS (${JudicialOfficer}$-$CourtRoom}$)
-            -   0
-        -   
-            -   SU CV BENCH TRIALS
-            -   SUPERIOR COURT CIVIL BENCH TRIALS (${JudicialOfficer}$-$CourtRoom}$)
-            -   0
-        -   
-            -   SU CV JURY TRIALS
-            -   SUPERIOR COURT CIVIL JURY TRIALS (${JudicialOfficer}$-$CourtRoom}$)
-            -   0
-        -   
-            -   ST CR JURY TRIALS
-            -   STATE COURT CRIMINAL JURY TRIALS (${JudicialOfficer}$-$CourtRoom}$)
-            -   1
-        -   
-            -   ST CV JURY TRIALS
-            -   STATE COURT CIVIL JURY TRIALS (${JudicialOfficer}$-$CourtRoom}$)
-            -   1
-        -   
-            -   ST CV SP SET JURY TRIAL
-            -   STATE COURT SPECIAL SET CIVIL JURY TRIAL (${JudicialOfficer}$-$CourtRoom}$)
-            -   1
-        -   
-            -   ST CV BENCH TRIALS
-            -   STATE COURT CIVIL BENCH TRIALS (${JudicialOfficer}$-$CourtRoom}$)
-            -   1        
+# Superior Spanning Sessions
+# Color is fill and based on session judge
+        -   odyssey_name:   SU CR SP SET JURY TRIAL
+            calendar_name:  SUPERIOR COURT SPECIAL SET CRIMINAL JURY TRIAL (${JudicialOfficer}$-$CourtRoom}$)
+            display_order:  0
+        -   odyssey_name:   SU CR JURY TRIALS
+            calendar_name:  SUPERIOR COURT CRIMINAL JURY TRIAL (${JudicialOfficer}$-$CourtRoom}$)
+            display_order:  0
+        -   odyssey_name:   SU CV SP SET BENCH TRIAL
+            calendar_name:  SUPERIOR COURT SPECIAL SET CIVIL BENCH TRIAL (${JudicialOfficer}$-$CourtRoom}
+            display_order:  0
+        -   odyssey_name:   SU CV BENCH TRIAL
+            calendar_name:  SUPERIOR COURT CIVIL BENCH TRIALS (${JudicialOfficer}$-$CourtRoom}$)
+            display_order:  0
+        -   odyssey_name:   SU CV BENCH TRIALS
+            calendar_name:  SUPERIOR COURT CIVIL BENCH TRIALS (${JudicialOfficer}$-$CourtRoom}$)
+            display_order:  0
+        -   odyssey_name:   SU CV JURY TRIALS
+            calendar_name:  SUPERIOR COURT CIVIL JURY TRIALS (${JudicialOfficer}$-$CourtRoom}$)
+            display_order:  0
+# State Spanning Sessions
+# Color is fill and based on session judge
+        -   odyssey_name:   ST CR JURY TRIALS
+            calendar_name:  STATE COURT CRIMINAL JURY TRIALS (${JudicialOfficer}$-$CourtRoom}$)
+            display_order:  1
+        -   odyssey_name:   ST CV JURY TRIALS
+            calendar_name:  STATE COURT CIVIL JURY TRIALS (${JudicialOfficer}$-$CourtRoom}$)
+            display_order:  1
+        -   odyssey_name:   ST CV SP SET JURY TRIAL
+            calendar_name:  STATE COURT SPECIAL SET CIVIL JURY TRIAL (${JudicialOfficer}$-$CourtRoom}$)
+            display_order:  1
+        -   odyssey_name:   ST CV BENCH TRIALS
+            calendar_name:  STATE COURT CIVIL BENCH TRIALS (${JudicialOfficer}$-$CourtRoom}$)
+            display_order:  1        
+    special_dates:
+# Spanning dates
+        -   name:           SPRING BREAK
+            begin_date:     2025-03-31
+            end_date:       2025-04-04
+            color:          None
+            fill:           Black
+            display_order:  2
+        -   name:           THANKSGIVING BREAK
+            begin_date:     2025-11-25
+            end_date:       2025-11-28
+            color:          Black
+            display_order:  2
+        -   name:           WINTER BREAK
+            begin_date:     2025-12-22
+            end_date:       2025-12-31
+            color:          Black
+            display_order:  2
+        -   name:           FALL BREAK
+            begin_date:     2025-09-22
+            end_date:       2025-09-26
+            color:          Black
+            display_order:  2
+        -   name:           WINTER CSCJ CONFERENCE
+            begin_date:     2025-01-21
+            end_date:       2025-01-24
+            color:          None
+            display_order:  2
+            fill:           Black
+            display_order:  2
+        -   name:           AV Upgrade Courtroom 402 - Courtroom 502 reserved for Judge Dunn
+            begin_date:     2025-12-01
+            end_date:       2025-12-12
+            color:          Black
+            fill:           Yellow
+            display_order:  2
+# Holidays
+        -   name:           NEW YEAR'S DAY
+            date:           2025-01-01
+            color:          White
+            display_order:  3
+        -   name:           MLK JR HOLIDAY
+            date:           2025-01-20
+            color:          White
+            display_order:  3
+        -   name:           MEMORIAL DAY HOLIDAY
+            date:           2025-05-26
+            color:          White
+            display_order:  3
+        -   name:           LABOR DAY
+            date:           2025-09-01
+            color:          White
+            display_order:  3
+        -   name:           LABOR DAY
+            date:           2025-09-01
+            color:          White
+            display_order:  3
+        -   name:           VETERAN's DAY
+            date:           2025-11-11
+            color:          Black
+            display_order:  3
+        -   name:           CHRISTMAS DAY
+            date:           2025-12-25
+            color:          White
+            display_order:  3
+# Grand Jury Dates
+        -   name:           GRAND JURY-R
+            date:           2025-01-13
+            color:          Red_Bold
+            display_order:  3
+        -   name:           GRAND JURY-R
+            date:           2025-02-10
+            color:          Red_Bold
+            display_order:  3
+        -   name:           GRAND JURY-N (D)
+            date:           2025-03-10
+            color:          Red_Bold
+            display_order:  3
+        -   name:           GRAND JURY-R
+            date:           2025-04-07
+            color:          Red_Bold
+            display_order:  3
+        -   name:           GRAND JURY-R
+            date:           2025-04-14
+            color:          Red_Bold
+            display_order:  3
+        -   name:           GRAND JURY-R
+            date:           2025-04-14
+            color:          Red_Bold
+            display_order:  3
+        -   name:           GRAND JURY-R
+            date:           2025-05-12
+            color:          Red_Bold
+            display_order:  3
+        -   name:           GRAND JURY-R
+            date:           2025-06-09
+            color:          Red_Bold
+            display_order:  3
+        -   name:           GRAND JURY-R
+            date:           2025-07-14
+            color:          Red_Bold
+            display_order:  3
+        -   name:           GRAND JURY-R
+            date:           2025-08-11
+            color:          Red_Bold
+            display_order:  3
+        -   name:           GRAND JURY-R
+            date:           2025-09-08
+            color:          Red_Bold
+            display_order:  3
+        -   name:           GRAND JURY-R
+            date:           2025-10-13
+            color:          Red_Bold
+            display_order: 2
+        -   name:           GRAND JURY-R
+            date:           2025-07-14
+            color:          Red_Bold
+            display_order:  3
+        -   name:           GRAND JURY-N (B)
+            date:           2025-11-10
+            color:          Red_Bold
+            display_order:  3
+        -   name:           GRAND JURY-R
+            date:           2025-12-08
+            color:          Red_Bold
+            display_order:  3
 constants:
     colors:
         Red: 'FFFF0000' 
