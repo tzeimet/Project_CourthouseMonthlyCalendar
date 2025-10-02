@@ -1,3 +1,4 @@
+-- ================================================================================================
 drop table if exists tmp_courtsession;
 CREATE TEMPORARY TABLE tmp_courtsession
 (
@@ -12,7 +13,11 @@ insert into
   tmp_courtsession
 select
   strftime(SessionDate,'%Y-%m-%d') as SessionDate
-  ,cs.StartTime as StartTime
+  ,case 
+    when cs_m.CalendarFormat is not null
+    then ''
+    else cs.StartTime
+  end as StartTime
   ,case 
     when cs_m.CalendarFormat is not null
     then
@@ -78,6 +83,7 @@ select
 from
   special_date
 ;
+-- ================================================================================================
 select
   *
 from
@@ -88,3 +94,91 @@ order by
   ,StartTime
   ,SessionDescription
 ;
+-- ------------------------------------------------------------------------------------------------
+-- Tests
+-- ------------------------------------------------------------------------------------------------
+select
+  *
+from
+  tmp_courtsession
+where
+  StartTime = ''
+  and SessionDate = '2025-01-06'
+order by
+  SessionDate
+  ,DisplayOrder
+  ,StartTime
+  ,SessionDescription
+;
+select
+  cs1.SessionDescription
+  ,cs2.SessionDescription
+from
+  tmp_courtsession cs1
+  left outer join tmp_courtsession cs2
+  on
+    cs2.SessionDate = cs1.SessionDate
+    and cs2.StartTime = cs1.StartTime
+    and cs2.SessionDescription = cs1.SessionDescription
+where
+  cs1.StartTime between '2025-01-06' and '2025-01-10'
+order by
+  cs1.SessionDate
+  ,cs1.DisplayOrder
+  ,cs1.StartTime
+  ,cs1.SessionDescription
+;
+-- ------------------------------------------------------------------------------------------------
+select
+  cs1.SessionDate
+  ,cs1.SessionDescription
+  ,cs1.SessionDate
+  ,cs2.SessionDescription
+from
+  tmp_courtsession cs1
+  left outer join tmp_courtsession cs2
+  on
+    cs2.SessionDescription = cs1.SessionDescription
+where
+    1=1
+    and cs1.SessionDate between '2025-01-06' and '2025-01-10'
+    and cs1.StartTime = ''
+    and cs2.SessionDate between '2025-01-06' and '2025-01-10'
+    and cs2.StartTime = ''
+    and cs1.SessionDate <> cs2.SessionDate
+;
+-- ------------------------------------------------------------------------------------------------
+select
+  dayofweek(SessionDate) as weekday
+  ,weekofyear(SessionDate) as yearweek
+  ,SessionDate as SessionDate
+  ,SessionDescription as SessionDescription
+from
+  tmp_courtsession
+where
+  StartTime - ''
+;
+select
+  SessionDate
+  ,StartTime
+  ,SessionDescription
+  ,Color
+  ,JudicialOfficerCode
+  ,DisplayOrder
+  ,month(SessionDate) as month
+  ,weekofyear(SessionDate) as yearweek
+  ,dayofweek(SessionDate) as weekday
+from
+  tmp_courtsession
+where
+  1-1
+  and StartTime - ''
+  and month(SessionDate) - 1
+  and weekofyear(SessionDate) - 5
+--
+order by
+  month
+  ,weekday
+  ,DisplayOrder
+;
+

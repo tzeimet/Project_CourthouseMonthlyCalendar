@@ -1,4 +1,4 @@
-# gen_court_session_calendar.py 20250926
+# gen_court_session_calendar.py 20251002
 
 import calendar
 import configparser
@@ -18,6 +18,7 @@ import pandas as pd
 from pandas import DataFrame # Import the specific class for hinting
 from pathlib import Path
 import pyodbc
+import re
 from sqlalchemy import create_engine
 import sys
 import urllib
@@ -79,7 +80,7 @@ def setup_logging(config: configparser.ConfigParser):
 # =================================================================================================
 # Read applicaytion configuration from a YAML file.
 # =================================================================================================
-def read_yaml_configuration(yamlFilename: str):
+def read_yaml_configuration(yamlFilename: str) -> configparser:
     """
     Reads the applicaiton's configuration informaiton from the given filename, yamlFilename. 
     Returns: A tuple (
@@ -94,7 +95,20 @@ def read_yaml_configuration(yamlFilename: str):
     with open(yamlFilename, 'r') as file:
         ymldata = yaml.safe_load(file)
     return(ymldata)
-#--------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------+
+def get_yaml_config_color(yaml_conf: configparser, color_name: str) -> str:
+    return yaml_conf['constants']['colors'][color_name]
+# ------------------------------------------------------------------------------------------------+
+def date_range_generator(start_date: date, end_date: date):
+    """Generates a sequence of dates from start_date up to and including end_date."""
+    # 1. Calculate the duration (a timedelta object)
+    delta = end_date - start_date
+    # 2. Iterate using range() for the number of days in the duration
+    # delta.days gives the number of days, +1 makes the range inclusive of the end_date.
+    for i in range(delta.days + 1):
+        # 3. Yield the start_date plus the timedelta for the current iteration (i days)
+        yield start_date + timedelta(days=i)
+# ------------------------------------------------------------------------------------------------+
 def get_date_range(start_date: date, end_date: date):
     """Generates a list of dates between a start and end date (inclusive)."""
     date_list = []
@@ -203,7 +217,6 @@ def get_odyssey_court_sessions_by_year(year: int,config: configparser) -> DataFr
     return df
 #--------------------------------------------------------------------------------------------------
 def convert_df_to_list(df: DataFrame,yaml_config) -> list:
-    court_session_list = []
     try:
         # Create a connection to an in memory DuckDB DB.
         #ddb_conn = duckdb.connect(database=':memory:')
@@ -240,7 +253,7 @@ CREATE TABLE {DUCKDB_TABLE_NAME} (
             if sp_dt.get('date',None):
                 special_dates.append(sp_dt)
             else:
-                for dt in get_date_range(sp_dt['begin_date'],sp_dt['end_date']):
+                for dt in date_range_generator(sp_dt['begin_date'],sp_dt['end_date']):
                     new_sp_dt = {
                         'name': sp_dt['name']
                         ,'date': dt
@@ -300,7 +313,8 @@ CREATE TABLE {DUCKDB_TABLE_NAME} (
         """)
         # Create a list of the court sessions transitioned via the mapping and special_dates
         # and resulting in a the form needed to be displayed in the calendar.
-        sql_qry = """
+        sql_qry="""
+-- ================================================================================================
 drop table if exists tmp_courtsession;
 CREATE TEMPORARY TABLE tmp_courtsession
 (
@@ -310,12 +324,17 @@ CREATE TEMPORARY TABLE tmp_courtsession
   ,Color varchar
   ,JudicialOfficerCode varchar
   ,DisplayOrder int
+  ,Week int
 );
 insert into
   tmp_courtsession
 select
   strftime(SessionDate,'%Y-%m-%d') as SessionDate
-  ,cs.StartTime as StartTime
+  ,case 
+    when cs_m.CalendarFormat is not null
+    then ''
+    else cs.StartTime
+  end as StartTime
   ,case 
     when cs_m.CalendarFormat is not null
     then
@@ -350,6 +369,7 @@ select
   ,j.Color as Color
   ,cs.JudicialOfficerCode as JudicialOfficerCode
   ,if(cs_m.DisplayOrder is null,3,cs_m.DisplayOrder) as DisplayOrder
+  ,strftime(SessionDate,'%U')::int as Week
 from
   courtsession cs 
   left outer join judge j
@@ -378,11 +398,52 @@ select
   ,Color as Color
   ,'' as JudicialOfficerCode
   ,DisplayOrder as DisplayOrder
+  ,strftime(Date,'%U')::int as Week
 from
   special_date
 ;
+-- ================================================================================================
+-- Get list of unique sessions in each week, sorting
+-- and adding a row_num so to have ability to maintain 
+-- same sort order.
 select
-  *
+  SessionDescription
+  ,Week
+  ,row_number() over (order by Week,DisplayOrder,SessionDescription) row_num
+from
+  (
+    select distinct
+      SessionDescription
+      ,DisplayOrder
+      ,Week
+    from
+      tmp_courtsession
+    where
+      StartTime = ''
+    order by
+      Week
+      ,DisplayOrder
+      ,SessionDescription
+  ) z
+  order by
+    Week
+    ,DisplayOrder
+    ,SessionDescription
+;
+-- ================================================================================================
+"""
+        week_sessions = ddb_conn.execute(sql_qry).fetchall()
+
+        sql_qry = """
+-- ================================================================================================
+select
+  SessionDate
+  ,StartTime
+  ,SessionDescription
+  ,Color
+  ,JudicialOfficerCode
+  ,DisplayOrder
+  ,strftime(SessionDate,'%U')::int as week
 from
   tmp_courtsession
 order by
@@ -391,8 +452,38 @@ order by
   ,StartTime
   ,SessionDescription
 ;
-        """
+-- ================================================================================================
+"""
+        court_session_list = []
+        sessions = []
         court_session_list = ddb_conn.execute(sql_qry).fetchall()
+
+        date_list = [s[0] for s in court_session_list]
+        for dt in date_range_generator(min(date_list),max(date_list)):
+            # Skip weekend dates.
+            if dt.isoweekday() <= 5:
+                date_sessions = [s for s in court_session_list if s[0] == dt and s[1] == '']
+                # From sorted list of all the sessions of the given week,
+                # clear those that are not in the current date's list. 
+                # For those that are, add any needed additional data, such as color.
+                for week_session in [ws for ws in week_sessions if ws[1] == int(dt.strftime("%U"))]:
+                    # Get matching date session to current week session, if exists.
+                    matching_date_session = None
+                    try:
+                        matching_date_session = next(
+                            date_session for date_session in date_sessions if week_session[0] == date_session[2]
+                        )
+                    except StopIteration:
+                        pass
+                    # Using SessionDescription
+                    if matching_date_session:
+                        # Add matching session with week session row_num to maintain order.
+                        # [SessionDate,StatrDate,SessionDescription,Color,JudicialOfficerCode,DisplayOrder,week,row_num]
+                        sessions.append(list(matching_date_session)+[week_session[2]])
+                    else:
+                        # Add blank session with week session row_num to maintain order.
+                        # [SessionDate,StatrDate='',SessionDescription='',Color='',JudicialOfficerCode='',DisplayOrder=,week,row_num]
+                        sessions.append([dt,'','','','',999,week_session[1],week_session[2]])
 #    except CatalogException as e:
 #        logger.exception(f"\nAn error occurred: {e}")
     except Exception as e:
@@ -400,7 +491,8 @@ order by
     finally:
         ddb_conn.close()
         logger.info("Succcessfully converted Dataframe to list.")
-    return court_session_list
+    sessions += [list(s)+[9999] for s in court_session_list if s[1] != '']
+    return sessions
 #--------------------------------------------------------------------------------------------------
 #==================================================================================================
 def main(
@@ -558,7 +650,8 @@ def main(
                     ws.column_dimensions[get_column_letter(col_idx)].width = cell_width
         
         # Save workboot for debugging.
-        wb.save("wb1.xlsx")
+        xlsx_filename = "wb1.xlsx"
+        wb.save(xlsx_filename)
         #sys.exit(0)
         
         # Copy worksheet for remaining months
@@ -588,7 +681,8 @@ def main(
         ws[subtitle_top_left_cell] = subtitle.replace("${superior_judge}$",superior_judges[0]['name'])
         
         # Save workboot for debugging.
-        wb.save("wb2.xlsx")
+        xlsx_filename = "wb2.xlsx"
+        wb.save(xlsx_filename)
         #sys.exit(0)
         
         # For each sheet (month) set up month days and placeholders for court sessions.
@@ -632,7 +726,9 @@ def main(
             #break # month loop
         
         # Save workboot for debugging.
-        wb.save("wb3.xlsx")
+        xlsx_filename = "wb3.xlsx"
+        wb.save(xlsx_filename)
+        wb = load_workbook(xlsx_filename)
         
         # Get the courts sessions from Odyssey DB for the calendar year,
         # plus the special_dates.
@@ -641,7 +737,6 @@ def main(
         # For each sheet (month) add court sessions to the month_days.
         # The month day sessions cells are indicated by '${calendar_day}$ placeholder.
         court_session_placeholder = '${court_session}$'  ### put in yaml_config
-        breakpoint()
         for month in range(1,13):
             # Select the worksheet by index.
             ws = wb.worksheets[month-1]
@@ -659,7 +754,7 @@ def main(
                 if row_num is None:
                     logger.error(f"{month=},{month_day=},{workday=},{row_num=},{day_sessions=}")
                     wb.save("wb-error.xlsx")
-                    breakpoint()
+                    breakpoint() # Exception debugging.
                     raise Exception(f"Unable to locate court session placeholder. {month=}, {month_day=}, {workday=}")
                 # Clear row cells leading up to the month_day's workday if they contain court_session_placeholder.
                 for wd in range(1,workday):
@@ -679,11 +774,22 @@ def main(
                             ws.insert_rows(row_num+day_row_num+1, amount=1)
                             # Copy cells to new rows.
                             # This copies the court placeholders from the previous cells.
-                            # This row will have just the court session placeholder in each cell. (Could just set the cell values to the placeholder???
+                            # This row will have just the court session placeholder in each cell. (Could just set the cell values to the placeholder???)
                             for col in range(1,6):
                                 copy_cell(ws.cell(row_num+day_row_num,col),ws.cell(row_num+day_row_num+1,col))
-                        session_description, judicial_officer = day_session[2],day_session[4]
-                        ws.cell(row_num+day_row_num,workday).value = session_description
+                        session_description, color_name, judicial_officer = day_session[2],day_session[3],day_session[4]
+                        session_cell = ws.cell(row_num+day_row_num,workday)
+                        if color_name:
+                            new_color = get_yaml_config_color(yaml_config,color_name)
+                        else:
+                            new_color = get_yaml_config_color(yaml_config,'Black')
+                        # Add the color to the value to be used later.
+                        # Trying to add the color now, when cells are being inserted and copied
+                        # seems to cause the colors to be incorrect in the result.
+                        if session_description:
+                            session_cell.value = f"{session_description}-[{new_color}]"
+                        else:
+                            session_cell.value = session_description
                         day_row_num += 1
                     row_num += day_row_num
                 # All day sessions, if any, have been added.
@@ -700,7 +806,9 @@ def main(
             #break # month loop
              
         # Save workboot for debugging.
-        wb.save("wb4b.xlsx")
+        xlsx_filename = "wb4b.xlsx"
+        wb.save(xlsx_filename)
+        wb = load_workbook(xlsx_filename)
         
         # For each month (sheet):
         #   - Remove all court session placeholders.
@@ -723,12 +831,12 @@ def main(
                         blank_row = False
                         break
                 # Remove blank rows.
-                if blank_row and not ws.cell(row,1).coordinate in ws.merged_cells:   
+                if blank_row and not ws.cell(row,1).coordinate in ws.merged_cells:
                     ws.delete_rows(row, amount=1)
 
         # Save workboot for debugging.
-        wb.save("wb5.xlsx")
-        wb = load_workbook("wb5.xlsx")
+        xlsx_filename = "wb5.xlsx"
+        wb.save(xlsx_filename)
         
         # Add Border to last row having data.
         for month in range(1,13):
@@ -765,12 +873,122 @@ def main(
                 if not blank_row:
                     # You must apply the border to ALL cells in the merged range
                     # since a single cell's border won't cover the entire merged area.
-                    #breakpoint()
                     border_row = row
                     break
             for col in range(1,6): 
                 #ws.cell(border_row,col).font # Simply accessing another style property sometimes forces the update
                 ws.cell(border_row,col).border = last_border
+
+        # Save workboot for debugging.
+        xlsx_filename = "wb6.xlsx"
+        wb.save(xlsx_filename)
+        
+        # For each sheet (month) look for adjacent cells in each row that have the same content and
+        # if cell.value not blank/None or starts with a number, then merge the cels.
+        breakpoint()
+        for month in range(1,13):
+            ws = wb.worksheets[month-1]
+            for row in range(7,ws.max_row+1):
+                first_cell_in_merge = None
+                last_cell_in_merge = None
+                for col in range(2,6):
+                    if ws.cell(row,col).value == "9:00 ST CR - Pleas (D)-[FF00B050]":
+                        pass
+                    if ws.cell(row,col).value and str(ws.cell(row,col).value)[0] not in "1234567890" and ws.cell(row,col).value == ws.cell(row,col-1).value:
+                        if first_cell_in_merge is None:
+                            first_cell_in_merge = ws.cell(row,col-1)
+                            # Set the font of the first_cell_in_merge.
+                            first_cell_in_merge.alignment = Alignment(
+                                horizontal='center'
+                                ,vertical='center'
+                            )
+                            #first_cell_in_merge.fill = yellow_fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+                        last_cell_in_merge = ws.cell(row,col)
+                    if col == 5 or ws.cell(row,col).value and ws.cell(row,col).value != ws.cell(row,col-1).value:
+                        if first_cell_in_merge and last_cell_in_merge:
+                            # Merge the cells
+                            ws.merge_cells(f"{first_cell_in_merge.coordinate}:{last_cell_in_merge.coordinate}")
+                            # Define border
+                            border = Border(
+                                left=Side(
+                                    style='thick', 
+                                    color=get_yaml_config_color(yaml_config,'Black')
+                                ), 
+                                right=Side(
+                                    style='thick', 
+                                    color=get_yaml_config_color(yaml_config,'Black')
+                                ), 
+                                top=Side(
+                                    style='thick', 
+                                    color=get_yaml_config_color(yaml_config,'Black')
+                                ), 
+                                bottom=Side(
+                                    style='thick', 
+                                    color=get_yaml_config_color(yaml_config,'Black')
+                                ) 
+                            )
+                            # Add border
+                            # You must apply the border to ALL cells in the merged range
+                            # since a single cell's border won't cover the entire merged area.
+                            for cells_in_row in ws.iter_rows(
+                                min_row=first_cell_in_merge.row
+                                ,min_col=first_cell_in_merge.column
+                                ,max_row=last_cell_in_merge.row
+                                ,max_col=last_cell_in_merge.column
+                            ):
+                                for cell in cells_in_row:
+                                    cell.border = border
+                            first_cell_in_merge = None
+                            last_cell_in_merge = None
+
+        # Save workboot for debugging.
+        xlsx_filename = "wb7.xlsx"
+        wb.save(xlsx_filename)
+        
+        # For each sheet (month) set the color for each court session cell.
+        # If cell is part of a merged group of cells, set the color as the background.
+        # Else, set the color of the font.
+        # The color has been embeded it the content of the cell. It is removed.
+        extraction_pattern = r'-\[([^\]]+)\]'
+        pattern_to_remove = r'-\[.*?\]'
+        for month in range(1,13):
+            ws = wb.worksheets[month-1]
+            for row in range(1,ws.max_row+1):
+                for col in range(1,6):
+                    cell = ws.cell(row,col)
+                    s = str(cell.value)
+                    match = re.search(extraction_pattern,s)
+                    result_removed = re.sub(pattern_to_remove,'',s)
+                    if match:
+                        # Group 1 (the content inside the parentheses) holds the desired substring
+                        new_color = match.group(1)
+                    else:
+                        new_color = None
+
+                    if new_color:
+                        if cell.coordinate in ws.merged_cells:
+                            cell.fill = PatternFill(start_color=new_color, end_color=new_color, fill_type='solid')
+                            cell.font = Font(
+                                name=font.name,
+                                size=font.size,
+                                bold=True,
+                                italic=font.italic,
+                                underline=font.underline,
+                                strike=font.strike,
+                                color=None  
+                            )
+                        else:
+                            font = cell.font
+                            cell.font = Font(
+                                name=font.name,
+                                size=font.size,
+                                bold=font.bold,
+                                italic=font.italic,
+                                underline=font.underline,
+                                strike=font.strike,
+                                color=new_color  # Only this property is changed
+                            )
+                        cell.value = result_removed
 
         # Save the workbook.
         workbook_name = f"{Path(__file__).stem}.xlsx"

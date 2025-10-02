@@ -59,7 +59,7 @@ data:
         -   name:           SPRING BREAK
             begin_date:     2025-03-31
             end_date:       2025-04-04
-            color:          None
+            color:          null
             fill:           Black
             display_order:  2
         -   name:           THANKSGIVING BREAK
@@ -80,7 +80,7 @@ data:
         -   name:           WINTER CSCJ CONFERENCE
             begin_date:     2025-01-21
             end_date:       2025-01-24
-            color:          None
+            color:          null
             display_order:  2
             fill:           Black
             display_order:  2
@@ -183,6 +183,7 @@ data:
 constants:
     colors:
         Red: 'FFFF0000' 
+        Red_Bold: 'FFFF0000' 
         Black: 'FF000000'
         Blue: 'FF0000FF'
         Blue_Dark: 'FF00008B'
@@ -323,7 +324,7 @@ worksheet:
         cell_range:
             top_left_cell: A6
             bottom_right_cell: E6
-            merge_cells: None
+            merge_cells: null
         text: ${calendar_day}$
         font:
             name: Calibri
@@ -356,7 +357,7 @@ worksheet:
         cell_range:
             top_left_cell: A7
             bottom_right_cell: E7
-            merge_cells: None
+            merge_cells: null
         text: ${court_session}$
         font:
             name: Calibri

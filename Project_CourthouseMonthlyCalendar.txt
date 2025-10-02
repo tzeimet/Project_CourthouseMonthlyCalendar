@@ -111,7 +111,9 @@ cls & uv run python gen_court_session_calendar.py
 ::============================================================================
 :: ToDos:
 ::============================================================================
+-	Align sesions of same value across workdays in same week.
 -	Add Holidays and Special Dates to top of Month workdays as sessions.
 -	Combine same session accros workdays.
 -	Abbreviate court session description with Description Key.
 -	Colorize court sessions based on judge.
+-   Center sessions that need to be
