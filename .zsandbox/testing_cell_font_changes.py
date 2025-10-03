@@ -62,7 +62,7 @@ for month in range(1,13):
 #    print(f"{cell.font=}")
 
 #breakpoint()
-xlsx_filename = r"wb6-test.xlsx"
+xlsx_filename = r"wb-test.xlsx"
 print(xlsx_filename)
 wb.save(xlsx_filename)
 

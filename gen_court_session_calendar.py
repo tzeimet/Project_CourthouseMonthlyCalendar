@@ -217,6 +217,8 @@ def get_odyssey_court_sessions_by_year(year: int,config: configparser) -> DataFr
     return df
 #--------------------------------------------------------------------------------------------------
 def convert_df_to_list(df: DataFrame,yaml_config) -> list:
+    court_session_list = []
+    sessions = []
     try:
         # Create a connection to an in memory DuckDB DB.
         #ddb_conn = duckdb.connect(database=':memory:')
@@ -454,8 +456,6 @@ order by
 ;
 -- ================================================================================================
 """
-        court_session_list = []
-        sessions = []
         court_session_list = ddb_conn.execute(sql_qry).fetchall()
 
         date_list = [s[0] for s in court_session_list]
@@ -492,6 +492,19 @@ order by
         ddb_conn.close()
         logger.info("Succcessfully converted Dataframe to list.")
     sessions += [list(s)+[9999] for s in court_session_list if s[1] != '']
+    return sessions
+#--------------------------------------------------------------------------------------------------
+def apply_abbreviations(sessions: list,yaml_config: dict) -> list:
+    abbreviation_keys = yaml_config['data']['abbreviation_keys']
+    for session in sessions:
+        # Only replace phase with abrev in sessions with non-empty session[1], i.e. StartTime=''.
+        if session[1]:
+            for phrase,abbrev in abbreviation_keys.items():
+                if len(phrase) == 1 and not phrase.isalpha() and not phrase.isdigit() and not phrase.isspace():
+                    session[2].replace(phrase,abbrev)
+                elif phrase.lower() in session[2].lower():
+                    pattern = re.compile(re.escape(phrase), re.IGNORECASE)
+                    session[2] = pattern.sub(abbrev, session[2])
     return sessions
 #--------------------------------------------------------------------------------------------------
 #==================================================================================================
@@ -734,6 +747,7 @@ def main(
         # plus the special_dates.
         court_sessions_df = get_odyssey_court_sessions_by_year(calendar_year,config)
         court_session_list = convert_df_to_list(court_sessions_df,yaml_config)
+        court_session_list = apply_abbreviations(court_session_list,yaml_config)
         # For each sheet (month) add court sessions to the month_days.
         # The month day sessions cells are indicated by '${calendar_day}$ placeholder.
         court_session_placeholder = '${court_session}$'  ### put in yaml_config
@@ -885,14 +899,13 @@ def main(
         
         # For each sheet (month) look for adjacent cells in each row that have the same content and
         # if cell.value not blank/None or starts with a number, then merge the cels.
-        breakpoint()
         for month in range(1,13):
             ws = wb.worksheets[month-1]
             for row in range(7,ws.max_row+1):
                 first_cell_in_merge = None
                 last_cell_in_merge = None
                 for col in range(2,6):
-                    if ws.cell(row,col).value == "9:00 ST CR - Pleas (D)-[FF00B050]":
+                    if ws.cell(row,col).value == "9:00 ST CR - Pleas (D)-[FF00B050]": # test code
                         pass
                     if ws.cell(row,col).value and str(ws.cell(row,col).value)[0] not in "1234567890" and ws.cell(row,col).value == ws.cell(row,col-1).value:
                         if first_cell_in_merge is None:
@@ -946,7 +959,7 @@ def main(
         wb.save(xlsx_filename)
         
         # For each sheet (month) set the color for each court session cell.
-        # If cell is part of a merged group of cells, set the color as the background.
+        # If cell value does not start with a digit, then set the color as the background.
         # Else, set the color of the font.
         # The color has been embeded it the content of the cell. It is removed.
         extraction_pattern = r'-\[([^\]]+)\]'
@@ -966,7 +979,7 @@ def main(
                         new_color = None
 
                     if new_color:
-                        if cell.coordinate in ws.merged_cells:
+                        if str(cell.value)[0] not in "1234567890": #cell.coordinate in ws.merged_cells:
                             cell.fill = PatternFill(start_color=new_color, end_color=new_color, fill_type='solid')
                             cell.font = Font(
                                 name=font.name,

@@ -1,4 +1,4 @@
-# gen_court_session_calendar.yaml 20251003
+# gen_court_session_calendar.yaml 20250922
 
 data:
     calendar_year: 2025
@@ -122,63 +122,63 @@ data:
 # Grand Jury Dates
         -   name:           GRAND JURY-R
             date:           2025-01-13
-            color:          Red
+            color:          Red_Bold
             display_order:  3
         -   name:           GRAND JURY-R
             date:           2025-02-10
-            color:          Red
+            color:          Red_Bold
             display_order:  3
         -   name:           GRAND JURY-N (D)
             date:           2025-03-10
-            color:          Red
+            color:          Red_Bold
             display_order:  3
         -   name:           GRAND JURY-R
             date:           2025-04-07
-            color:          Red
+            color:          Red_Bold
             display_order:  3
         -   name:           GRAND JURY-R
             date:           2025-04-14
-            color:          Red
+            color:          Red_Bold
             display_order:  3
         -   name:           GRAND JURY-R
             date:           2025-04-14
-            color:          Red
+            color:          Red_Bold
             display_order:  3
         -   name:           GRAND JURY-R
             date:           2025-05-12
-            color:          Red
+            color:          Red_Bold
             display_order:  3
         -   name:           GRAND JURY-R
             date:           2025-06-09
-            color:          Red
+            color:          Red_Bold
             display_order:  3
         -   name:           GRAND JURY-R
             date:           2025-07-14
-            color:          Red
+            color:          Red_Bold
             display_order:  3
         -   name:           GRAND JURY-R
             date:           2025-08-11
-            color:          Red
+            color:          Red_Bold
             display_order:  3
         -   name:           GRAND JURY-R
             date:           2025-09-08
-            color:          Red
+            color:          Red_Bold
             display_order:  3
         -   name:           GRAND JURY-R
             date:           2025-10-13
-            color:          Red
+            color:          Red_Bold
             display_order: 2
         -   name:           GRAND JURY-R
             date:           2025-07-14
-            color:          Red
+            color:          Red_Bold
             display_order:  3
         -   name:           GRAND JURY-N (B)
             date:           2025-11-10
-            color:          Red
+            color:          Red_Bold
             display_order:  3
         -   name:           GRAND JURY-R
             date:           2025-12-08
-            color:          Red
+            color:          Red_Bold
             display_order:  3
     abbreviation_keys:
         Visiting Judge: VJ
@@ -208,9 +208,11 @@ data:
         Traffic Violations Bureau: TVB
         Uncontested case: UNC
         '\.': null
+        
 constants:
     colors:
         Red: 'FFFF0000' 
+        Red_Bold: 'FFFF0000' 
         Black: 'FF000000'
         Blue: 'FF0000FF'
         Blue_Dark: 'FF00008B'
