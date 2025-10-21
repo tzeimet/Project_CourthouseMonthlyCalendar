@@ -99,7 +99,7 @@ data:
             date:           2025-01-20
             color:          White
             display_order:  3
-        -   name:           MEMORIAL DAY HOLIDAY
+        -   name:           MEMORIAL DAY
             date:           2025-05-26
             color:          White
             display_order:  3
@@ -111,9 +111,25 @@ data:
             date:           2025-09-01
             color:          White
             display_order:  3
+        -   name:           INDEPENDENCE DAY 
+            date:           2025-07-04
+            color:          White
+            display_order:  3
         -   name:           VETERAN's DAY
             date:           2025-11-11
             color:          Black
+            display_order:  3
+        -   name:           THANKSGIVING
+            date:           2025-11-27
+            color:          Grey
+            display_order:  3
+        -   name:           THANKSGIVING
+            date:           2025-11-28
+            color:          Grey
+            display_order:  3
+        -   name:           CHRISTMAS EVE
+            date:           2025-12-24
+            color:          White
             display_order:  3
         -   name:           CHRISTMAS DAY
             date:           2025-12-25
@@ -315,11 +331,11 @@ worksheet:
             merge_cells: ByRow
         column_width_inches: 1.59
         text:
-            - Monday
-            - Tuesday
-            - Wednesday
-            - Thursday
-            - Friday
+            - MONDAY
+            - TUESDAY
+            - WEDNESDAY
+            - THURSDAY
+            - FRIDAY
         font:
             name: Calibri
             size: 10

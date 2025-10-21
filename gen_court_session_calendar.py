@@ -1,4 +1,4 @@
-# gen_court_session_calendar.py 20251002
+# gen_court_session_calendar.py 20251021
 
 import calendar
 import configparser
@@ -28,6 +28,7 @@ import yaml
 #==============================================================================
 # Constants
 #==============================================================================
+debugging_skip_code = False
 MAX_ROW = None
 #------------------------------------------------------------------------------
 #==============================================================================
@@ -118,28 +119,26 @@ def get_date_range(start_date: date, end_date: date):
         current_date += timedelta(days=1)
     return date_list
 #--------------------------------------------------------------------------------------------------
-def find_first_matching_cell(worksheet: Worksheet, column_letter: str, text: str):
+def find_first_matching_cell(worksheet: Worksheet, column_letter: str, text: str) -> int:
     """
     Finds the first row index (1-based) with the given text in the given column.
     Returns the row number of the matching cell or None.
     """
     for row_num in range(1,worksheet.max_row+2):
         cell = worksheet[f'{column_letter}{row_num}']
-#        if cell.value is None or cell.value == '' or cell.value == text:
-        if cell.value == text:
+        if cell.value == text or cell.value is None and (text == '' or text is None): #if cell.value == text:
             return row_num
     logger.debug(f"No empty cell found in column {column_letter} up to row {worksheet.max_row + 1}.")
     return None
 #--------------------------------------------------------------------------------------------------
-def find_first_matching_cell_by_col_idx(worksheet: Worksheet, column_idx: int, text: str,start_row: int = 1):
+def find_first_matching_cell_by_col_idx(worksheet: Worksheet, column_idx: int, text: str,start_row: int = 1) -> int:
     """
     Finds the first row index (1-based) with the given text in the given column.
     Returns the row number of the matching cell or None.
     """
     for row_num in range(start_row,worksheet.max_row+2):
         cell = worksheet.cell(row_num,column_idx)
-#        if cell.value is None or cell.value == '' or cell.value == text:
-        if cell.value == text:
+        if cell.value == text or cell.value is None and (text == '' or text is None): #if cell.value == text:
             return row_num
     logger.debug(f"Cell with value '{text}' not found in column index {column_idx} up to row {worksheet.max_row + 1}.")
     return None
@@ -556,452 +555,580 @@ def main(
             sys.exit()
         #  Data from YAML config
         calendar_year = yaml_config['data'].get('calendar_year',calendar_year)
-        MAX_ROW = yaml_config['constants']['worksheet']['MAX_ROW']
+###        MAX_ROW = yaml_config['constants']['worksheet']['MAX_ROW']
         
-        # Open a new workbook.
-        wb = Workbook()
-        # Open the active worksheet. This would be the first of the new workbook.
-        ws = wb.active
-        # Rename the worksheet
-        sheet_name = yaml_config['worksheet']['sheet_name']
-        ws.title = sheet_name.replace(
-            "${calendar_month_name}$"
-            ,calendar.month_name[1]
-        ).replace(
-            "${calendar_year}$"
-            ,str(calendar_year)
-        )
-        
-        # For each subkey of ['worksheet'], create the sheet's layout.
-        # Add:
-        #   Title
-        #   Subtitle
-        #   Cell Borders
-        for k,v in yaml_config['worksheet'].items():
-            if not isinstance(v,dict):
-                continue
-            logger.info(f"Creating: {k}")
-            top_left_cell = v['cell_range']['top_left_cell']
-            bottom_right_cell = v['cell_range']['bottom_right_cell']
-            min_row, min_col = coordinate_to_tuple(top_left_cell)
-            max_row, max_col = coordinate_to_tuple(bottom_right_cell)
-            merge_cells = v['cell_range']['merge_cells']
-            # Define font
-            font = Font(
-                name=v['font']['name'],             # Font type/family
-                size=v['font']['size'],             # Font size (points)
-                bold=v['font']['bold'],             # Optional: Make text bold
-                italic=v['font']['italic'],         # Optional: Make text italic
-                color=yaml_config['constants']['colors'][v['font']['color']]  # Font color (Hex code - FF0000 is Red)
+        debugging_skip_code = False
+        if not debugging_skip_code:
+            # Open a new workbook.
+            wb = Workbook()
+            # Open the active worksheet. This would be the first of the new workbook.
+            ws = wb.active
+            # Rename the worksheet
+            sheet_name = yaml_config['worksheet']['sheet_name']
+            ws.title = sheet_name.replace(
+                "${calendar_month_name}$"
+                ,calendar.month_name[1]
+            ).replace(
+                "${calendar_year}$"
+                ,str(calendar_year)
             )
-            # Define fill color
-            fill_color = PatternFill(
-                start_color=yaml_config['constants']['colors'][v['fill']['start_color']], 
-                end_color=yaml_config['constants']['colors'][v['fill']['end_color']], 
-                fill_type=v['fill']['fill_type']
-            )
-            # Define border
-            border = Border(
-                left=Side(
-                    style=v['border']['left']['style'], 
-                    color=yaml_config['constants']['colors'][v['border']['left']['color']]
-                ), 
-                right=Side(
-                    style=v['border']['right']['style'], 
-                    color=yaml_config['constants']['colors'][v['border']['right']['color']]
-                ), 
-                top=Side(
-                    style=v['border']['top']['style'], 
-                    color=yaml_config['constants']['colors'][v['border']['top']['color']]
-                ), 
-                bottom=Side(
-                    style=v['border']['bottom']['style'], 
-                    color=yaml_config['constants']['colors'][v['border']['bottom']['color']]
-                ) 
-            )
-            # Merge cells.
-            if merge_cells in ['ByColumn','ByBoth',]:
-                ws.merge_cells(f"{top_left_cell}:{bottom_right_cell}")
-                # Set text
-                ws[top_left_cell] = v['text'][0] if isinstance(v['text'],list) else v['text']
-                # Set font
-                ws[top_left_cell].font = font
-                # Set alignment.
-                ws[top_left_cell].alignment = Alignment(horizontal=v['alignment']['horizontal'], vertical=v['alignment']['vertical'])
-                # Set fill color.
-                ws[top_left_cell].fill = fill_color
-            else: # 'ByRow'
+            
+            # For each subkey of ['worksheet'], create the sheet's layout.
+            # Add:
+            #   Title
+            #   Subtitle
+            #   Cell Borders
+            for k,v in yaml_config['worksheet'].items():
+                if not isinstance(v,dict):
+                    continue
+                logger.info(f"Creating: {k}")
+                top_left_cell = v['cell_range']['top_left_cell']
+                bottom_right_cell = v['cell_range']['bottom_right_cell']
+                min_row, min_col = coordinate_to_tuple(top_left_cell)
+                max_row, max_col = coordinate_to_tuple(bottom_right_cell)
+                merge_cells = v['cell_range']['merge_cells']
+                # Define font
+                font = Font(
+                    name=v['font']['name'],             # Font type/family
+                    size=v['font']['size'],             # Font size (points)
+                    bold=v['font']['bold'],             # Optional: Make text bold
+                    italic=v['font']['italic'],         # Optional: Make text italic
+                    color=yaml_config['constants']['colors'][v['font']['color']]  # Font color (Hex code - FF0000 is Red)
+                )
+                # Define fill color
+                fill_color = PatternFill(
+                    start_color=yaml_config['constants']['colors'][v['fill']['start_color']], 
+                    end_color=yaml_config['constants']['colors'][v['fill']['end_color']], 
+                    fill_type=v['fill']['fill_type']
+                )
+                # Define border
+                border = Border(
+                    left=Side(
+                        style=v['border']['left']['style'], 
+                        color=yaml_config['constants']['colors'][v['border']['left']['color']]
+                    ), 
+                    right=Side(
+                        style=v['border']['right']['style'], 
+                        color=yaml_config['constants']['colors'][v['border']['right']['color']]
+                    ), 
+                    top=Side(
+                        style=v['border']['top']['style'], 
+                        color=yaml_config['constants']['colors'][v['border']['top']['color']]
+                    ), 
+                    bottom=Side(
+                        style=v['border']['bottom']['style'], 
+                        color=yaml_config['constants']['colors'][v['border']['bottom']['color']]
+                    ) 
+                )
                 # Merge cells.
-                for i,col in enumerate(range(min_col,max_col+1)):
-                    ws.merge_cells(
-                        start_row=min_row
-                        ,start_column=col
-                        ,end_row=max_row
-                        ,end_column=col
-                    )
+                if merge_cells in ['ByColumn','ByBoth',]:
+                    ws.merge_cells(f"{top_left_cell}:{bottom_right_cell}")
                     # Set text
-                    ws.cell(row=min_row, column=col).value = v['text'][i]  if isinstance(v['text'],list) else v['text']
+                    ws[top_left_cell] = v['text'][0] if isinstance(v['text'],list) else v['text']
                     # Set font
-                    ws.cell(row=min_row, column=col).font = font
+                    ws[top_left_cell].font = font
                     # Set alignment.
-                    ws.cell(row=min_row, column=col).alignment = Alignment(horizontal=v['alignment']['horizontal'], vertical=v['alignment']['vertical'])
+                    ws[top_left_cell].alignment = Alignment(
+                        horizontal=v['alignment']['horizontal']
+                        ,vertical=v['alignment']['vertical']
+                        ,wrapText=True
+                    )
                     # Set fill color.
-                    ws.cell(row=min_row, column=col).fill = fill_color
-            # Add border
-            # You must apply the border to ALL cells in the merged range
-            # since a single cell's border won't cover the entire merged area.
-            for row in ws.iter_rows(min_row=min_row, min_col=min_col, max_row=max_row, max_col=max_col):
-                for cell in row:
-                    cell.border = border
-            # Set column width
-            if v.get('column_width_inches',None) is not None:
-                # Set width of columns
-                cell_width = yaml_config['constants']['worksheet']['EXCEL_CELL_UNIT_PER_INCH'] * v['column_width_inches']
-                _, col_idx_left = coordinate_to_tuple(top_left_cell)
-                _, col_idx_right = coordinate_to_tuple(bottom_right_cell)
-                for col_idx in range(col_idx_left,col_idx_right+1):
-                    ws.column_dimensions[get_column_letter(col_idx)].width = cell_width
-        
-        # Save workboot for debugging.
-        xlsx_filename = "wb1.xlsx"
-        wb.save(xlsx_filename)
-        #sys.exit(0)
-        
-        # Copy worksheet for remaining months
-        yaml_config_ws_title = yaml_config['worksheet']['title']
-        title_top_left_cell = yaml_config_ws_title['cell_range']['top_left_cell']
-        title = yaml_config_ws_title['text'][0]  if isinstance(yaml_config_ws_title['text'],list) else yaml_config_ws_title['text']
-        yaml_config_ws_subtitle = yaml_config['worksheet']['subtitle']
-        subtitle_top_left_cell = yaml_config_ws_subtitle['cell_range']['top_left_cell']
-        subtitle = yaml_config_ws_subtitle['text'][0]  if isinstance(yaml_config_ws_subtitle['text'],list) else yaml_config_ws_subtitle['text']
-        superior_judges = yaml_config['data']['superior_judges']
-        judges_count = len(superior_judges)
-        if judges_count < 1:
-            raise Exception("'superior_judges' are not specified in YAML configuration file.")
-        for m in range(2,13):
-            # Copy worksheet
-            new_ws = wb.copy_worksheet(ws)
-            # Rename the new worksheet
-            new_ws.title = sheet_name.replace("${calendar_month_name}$",calendar.month_name[m]).replace("${calendar_year}$",str(calendar_year))
-            # Change title in sheet
-            new_ws[title_top_left_cell] = title.replace("${calendar_month_name}$",calendar.month_name[m]).replace("${calendar_year}$",str(calendar_year))
-            # Change subtitle in sheet
-            new_ws[subtitle_top_left_cell] = subtitle.replace("${superior_judge}$",superior_judges[m - judges_count*int((m-1)/judges_count) - 1]['name'])
-            #
-        # Change title in first (January) sheet
-        ws[title_top_left_cell] = title.replace("${calendar_month_name}$",calendar.month_name[1]).replace("${calendar_year}$",str(calendar_year))
-        # Change subtitle in first (January) sheet
-        ws[subtitle_top_left_cell] = subtitle.replace("${superior_judge}$",superior_judges[0]['name'])
-        
-        # Save workboot for debugging.
-        xlsx_filename = "wb2.xlsx"
-        wb.save(xlsx_filename)
-        #sys.exit(0)
-        
-        # For each sheet (month) set up month days and placeholders for court sessions.
-        # The month day cells are indicated by '${calendar_day}$ placeholder.
-        month_day_placeholder = '${calendar_day}$'  ### put in yaml_config
-        for month in range(1,13):
-            # Select the worksheet by index.
-            ws = wb.worksheets[month-1]
-            month_num_days = calendar.monthrange(calendar_year, month)[1]
-            monthday = 0 # Controls month loop.
-            for month_day in range(1,month_num_days+1):
-                if month_day < monthday or get_weekday_number(calendar_year,month,month_day) > 5:
-                    continue
-                # Locate top left month day placeholder.
-                row_num = find_first_matching_cell(ws,'A',month_day_placeholder)
-                if row_num is None:
-                    raise Exception("Unable to locate top left month day placeholder. {month=}, {month_day=}")
-                # Add another week of rows to the sheet.
-                ws.insert_rows(row_num+2, amount=2)
-                # Copy cells to new rows.
-                for row in range(row_num,row_num+2):
+                    ws[top_left_cell].fill = fill_color
+                else: # 'ByRow'
+                    # Merge cells.
+                    for i,col in enumerate(range(min_col,max_col+1)):
+                        ws.merge_cells(
+                            start_row=min_row
+                            ,start_column=col
+                            ,end_row=max_row
+                            ,end_column=col
+                        )
+                        # Set text
+                        ws.cell(row=min_row, column=col).value = v['text'][i]  if isinstance(v['text'],list) else v['text']
+                        # Set font
+                        ws.cell(row=min_row, column=col).font = font
+                        # Set alignment.
+                        ws.cell(row=min_row, column=col).alignment = Alignment(
+                            horizontal=v['alignment']['horizontal']
+                            ,vertical=v['alignment']['vertical']
+                            ,wrapText=True
+                        )
+                        # Set fill color.
+                        ws.cell(row=min_row, column=col).fill = fill_color
+                # Add border
+                # You must apply the border to ALL cells in the merged range
+                # since a single cell's border won't cover the entire merged area.
+                for row in ws.iter_rows(min_row=min_row, min_col=min_col, max_row=max_row, max_col=max_col):
+                    for cell in row:
+                        cell.border = border
+                # Set column width
+                if v.get('column_width_inches',None) is not None:
+                    # Set width of columns
+                    cell_width = yaml_config['constants']['worksheet']['EXCEL_CELL_UNIT_PER_INCH'] * v['column_width_inches']
+                    _, col_idx_left = coordinate_to_tuple(top_left_cell)
+                    _, col_idx_right = coordinate_to_tuple(bottom_right_cell)
+                    for col_idx in range(col_idx_left,col_idx_right+1):
+                        ws.column_dimensions[get_column_letter(col_idx)].width = cell_width
+            
+            # Save workbook for debugging.
+            xlsx_filename = "wb1.xlsx"
+            wb.save(xlsx_filename)
+            #sys.exit(0)
+            
+        if not debugging_skip_code:
+            workbook_name = "wb1.xlsx"
+            wb = load_workbook(workbook_name)
+            # Open the active worksheet. This would be the first of the new workbook.
+            ws = wb.active
+            # Copy worksheet for remaining months
+            yaml_config_ws_title = yaml_config['worksheet']['title']
+            title_top_left_cell = yaml_config_ws_title['cell_range']['top_left_cell']
+            title = yaml_config_ws_title['text'][0]  if isinstance(yaml_config_ws_title['text'],list) else yaml_config_ws_title['text']
+            yaml_config_ws_subtitle = yaml_config['worksheet']['subtitle']
+            subtitle_top_left_cell = yaml_config_ws_subtitle['cell_range']['top_left_cell']
+            subtitle = yaml_config_ws_subtitle['text'][0]  if isinstance(yaml_config_ws_subtitle['text'],list) else yaml_config_ws_subtitle['text']
+            superior_judges = yaml_config['data']['superior_judges']
+            judges_count = len(superior_judges)
+            if judges_count < 1:
+                raise Exception("'superior_judges' are not specified in YAML configuration file.")
+            for m in range(2,13):
+                # Copy worksheet
+                new_ws = wb.copy_worksheet(ws)
+                # Rename the new worksheet
+                new_ws.title = sheet_name.replace("${calendar_month_name}$",calendar.month_name[m]).replace("${calendar_year}$",str(calendar_year))
+                # Change title in sheet
+                new_ws[title_top_left_cell] = title.replace("${calendar_month_name}$",calendar.month_name[m]).replace("${calendar_year}$",str(calendar_year))
+                # Change subtitle in sheet
+                new_ws[subtitle_top_left_cell] = subtitle.replace("${superior_judge}$",superior_judges[m - judges_count*int((m-1)/judges_count) - 1]['name'])
+                #
+            # Change title in first (January) sheet
+            ws[title_top_left_cell] = title.replace("${calendar_month_name}$",calendar.month_name[1]).replace("${calendar_year}$",str(calendar_year))
+            # Change subtitle in first (January) sheet
+            ws[subtitle_top_left_cell] = subtitle.replace("${superior_judge}$",superior_judges[0]['name'])
+            
+            # Save workbook for debugging.
+            xlsx_filename = "wb2.xlsx"
+            wb.save(xlsx_filename)
+            #sys.exit(0)
+            
+        if not debugging_skip_code:
+            workbook_name = "wb2.xlsx"
+            wb = load_workbook(workbook_name)
+            # For each sheet (month) set up month days and placeholders for court sessions.
+            # The month day cells are indicated by '${calendar_day}$ placeholder.
+            month_day_placeholder = '${calendar_day}$'  ### put in yaml_config
+            for month in range(1,13):
+                # Select the worksheet by index.
+                ws = wb.worksheets[month-1]
+                month_num_days = calendar.monthrange(calendar_year, month)[1]
+                monthday = 0 # Controls month loop.
+                for month_day in range(1,month_num_days+1):
+                    if month_day < monthday or get_weekday_number(calendar_year,month,month_day) > 5:
+                        continue
+                    # Locate top left month day placeholder.
+                    row_num = find_first_matching_cell(ws,'A',month_day_placeholder)
+                    if row_num is None:
+                        raise Exception("Unable to locate top left month day placeholder. {month=}, {month_day=}")
+                    # Add another week of rows to the sheet.
+                    ws.insert_rows(row_num+2, amount=2)
+                    # Copy cells to new rows.
+                    for row in range(row_num,row_num+2):
+                        for col in range(1,6):
+                            copy_cell(ws.cell(row,col),ws.cell(row+2,col))
+                    # Get the next month_day that is a workday.
+                    if (workday := get_weekday_number(calendar_year,month,month_day)) > 5: # >= Friday
+                        continue
+                    # For the current week, set workday cell value to month_day if workday is has a month day. Else clear it.
+                    monthday = month_day
+                    for cell_workday in range(1,6):
+                        cell = ws.cell(row_num,cell_workday)
+                        if cell_workday < workday or monthday > month_num_days:
+                            cell_value = 'Empty'
+                        else:
+                            cell_value = monthday
+                            monthday += 1
+                        cell.value = cell_value
+                    if monthday+2 > month_num_days: # account for Sat & Sun
+                        # Cleanup, Remove unneeded row.
+                        row_num += 2
+                        ws.delete_rows(row_num, amount=2)
+                        break
+                #break # month loop
+            
+            # Save workbook for debugging.
+            xlsx_filename = "wb3.xlsx"
+            wb.save(xlsx_filename)
+            wb = load_workbook(xlsx_filename)
+            
+        if not debugging_skip_code:
+            workbook_name = "wb3.xlsx"
+            wb = load_workbook(workbook_name)
+            # There are now month day cells that contain the value "Empty". 
+            # Locate these cell and set the font color to the same as the cell's fill color
+            # so to "hide" the content.
+            for month in range(1,13):
+                # Select the worksheet by index.
+                ws = wb.worksheets[month-1]
+                # For each column, locate the cells whose value is "Empty" 
+                # and then set its cell font color to the same as its fill color.
+                # (NOTE: This had to be done after reloading the workbook from a file
+                # because doing this in the previous loop code the cell font and fill 
+                # settings seem to be tied when copied.
+                for col in range(1,6):
+                    # Locate the court session placeholder.
+                    row_num = 0
+                    while (row_num := find_first_matching_cell_by_col_idx(ws,col,"Empty",start_row=row_num+1)):
+                        # Set the font color to same as fill to hide the text.
+                        cell = ws.cell(row_num,col)
+                        fill = cell.fill
+                        font = cell.font
+                        cell.font = Font(
+                            name=font.name
+                            ,size=font.size
+                            ,bold=font.bold
+                            ,italic=font.italic
+                            ,underline=font.underline
+                            ,strike=font.strike
+                            ,color=fill.fgColor.rgb  
+                        )
+            # Save workbook for debugging.
+            xlsx_filename = "wb3a.xlsx"
+            wb.save(xlsx_filename)
+            wb = load_workbook(xlsx_filename)
+            
+        if not debugging_skip_code:
+            workbook_name = "wb3a.xlsx"
+            wb = load_workbook(workbook_name)
+            # Get the courts sessions from Odyssey DB for the calendar year,
+            # plus the special_dates.
+            court_sessions_df = get_odyssey_court_sessions_by_year(calendar_year,config)
+            court_session_list = convert_df_to_list(court_sessions_df,yaml_config)
+            court_session_list = apply_abbreviations(court_session_list,yaml_config)
+            # For each sheet (month) add court sessions to the month_days.
+            # The month day sessions cells are indicated by '${calendar_day}$' placeholder.
+            court_session_placeholder = '${court_session}$'  ### put in yaml_config
+            for month in range(1,13):
+                # Select the worksheet by index.
+                ws = wb.worksheets[month-1]
+                month_num_days = calendar.monthrange(calendar_year, month)[1]
+                for month_day in range(1,month_num_days+1):
+                    # Get the workday for the month_day.
+                    # Continue, if a weekend.
+                    workday = get_weekday_number(calendar_year,month,month_day)
+                    if workday > 5:
+                        continue
+                    # Locate the month in the work_day column.
+                    row_num = find_first_matching_cell_by_col_idx(ws,workday,month_day)
+                    # Locate the court session placeholder.
+                    row_num = find_first_matching_cell_by_col_idx(ws,workday,court_session_placeholder,start_row=row_num)
+                    if row_num is None:
+                        logger.error(f"{month=},{month_day=},{workday=},{row_num=},{day_sessions=}")
+                        wb.save("wb-error.xlsx")
+                        breakpoint() # Exception debugging.
+                        raise Exception(f"Unable to locate court session placeholder. {month=}, {month_day=}, {workday=}")
+                    # Clear row cells leading up to the month_day's workday if they contain court_session_placeholder.
+                    for wd in range(1,workday):
+                        if ws.cell(row_num,wd).value == court_session_placeholder:
+                            ws.cell(row_num,wd).value = None
+                    if month_day > month_num_days:
+                        break # Break to next month
+                    day_sessions = [row for row in court_session_list if row[0] == datetime.strptime(f'{calendar_year}-{month:02d}-{month_day:02d}','%Y-%m-%d').date()]
+                    if day_sessions:
+                        # For the current month_day, add its court_sessions.
+                        day_row_num = 0
+                        for day_session in day_sessions:
+                            # if next row does not contain court session placeholder,
+                            # then add a new row of placeholders.
+                            if ws.cell(row_num+day_row_num+1,workday).value != court_session_placeholder:
+                                # Add court session another row to the sheet.
+                                ws.insert_rows(row_num+day_row_num+1, amount=1)
+                                # Copy cells to new rows.
+                                # This copies the court placeholders from the previous cells.
+                                # This row will have just the court session placeholder in each cell. (Could just set the cell values to the placeholder???)
+                                for col in range(1,6):
+                                    copy_cell(ws.cell(row_num+day_row_num,col),ws.cell(row_num+day_row_num+1,col))
+                            session_description, color_name, judicial_officer = day_session[2],day_session[3],day_session[4]
+                            session_cell = ws.cell(row_num+day_row_num,workday)
+                            if color_name:
+                                new_color = get_yaml_config_color(yaml_config,color_name)
+                            else:
+                                new_color = get_yaml_config_color(yaml_config,'Black')
+                            # Add the color to the value to be used later.
+                            # Trying to add the color now, when cells are being inserted and copied
+                            # seems to cause the colors to be incorrect in the result.
+                            if session_description:
+                                session_cell.value = f"{session_description}-[{new_color}]"
+                            else:
+                                session_cell.value = session_description
+                            day_row_num += 1
+                        row_num += day_row_num
+                    # All day sessions, if any, have been added.
+                    # Clear the day's remaining session placeholders
+                    while row := find_first_matching_cell_by_col_idx(ws,workday,court_session_placeholder):
+                        # row must be same or adjacent to row_num.
+                        if row and 0 <= (row - row_num) <= 1:
+                            row_num = row
+                            ws.cell(row_num,workday).value = None
+                        else:
+                            break
+                    if 1==0 and month_day > 13: # test code to stop early.
+                        break # month_day loop
+                #break # month loop
+                 
+            # Save workbook for debugging.
+            xlsx_filename = "wb4.xlsx"
+            wb.save(xlsx_filename)
+            wb = load_workbook(xlsx_filename)
+            
+        if not debugging_skip_code:
+            workbook_name = "wb4.xlsx"
+            wb = load_workbook(workbook_name)
+            # For each month (sheet):
+            #   - Remove all court session placeholders.
+            #   - Remove all blank rows.
+            #   - Add Border to last row.
+            for month in range(1,13):
+                # Select the worksheet by index.
+                ws = wb.worksheets[month-1]
+                # Remove all court session placeholders.
+                for row in range(ws.max_row+1,2,-1): #range(1,ws.max_row+2)
                     for col in range(1,6):
-                        copy_cell(ws.cell(row,col),ws.cell(row+2,col))
-                # Get the next month_day that is a workday.
-                if (workday := get_weekday_number(calendar_year,month,month_day)) > 5: # >= Friday
-                    continue
-                # For the current week, set workday cell value to month_day if workday is has a month day. Else clear it.
-                monthday = month_day
-                for cell_workday in range(1,6):
-                    if cell_workday < workday or monthday > month_num_days:
-                        cell_value = ''
-                    else:
-                        cell_value = monthday
-                        monthday += 1
-                    ws.cell(row_num,cell_workday).value = cell_value
-                if monthday+2 > month_num_days: # account for Sat & Sun
-                    # Cleanup, Remove unneeded row.
-                    row_num += 2
-                    ws.delete_rows(row_num, amount=2)
-                    break
-            #break # month loop
-        
-        # Save workboot for debugging.
-        xlsx_filename = "wb3.xlsx"
-        wb.save(xlsx_filename)
-        wb = load_workbook(xlsx_filename)
-        
-        # Get the courts sessions from Odyssey DB for the calendar year,
-        # plus the special_dates.
-        court_sessions_df = get_odyssey_court_sessions_by_year(calendar_year,config)
-        court_session_list = convert_df_to_list(court_sessions_df,yaml_config)
-        court_session_list = apply_abbreviations(court_session_list,yaml_config)
-        # For each sheet (month) add court sessions to the month_days.
-        # The month day sessions cells are indicated by '${calendar_day}$ placeholder.
-        court_session_placeholder = '${court_session}$'  ### put in yaml_config
-        for month in range(1,13):
-            # Select the worksheet by index.
-            ws = wb.worksheets[month-1]
-            month_num_days = calendar.monthrange(calendar_year, month)[1]
-            for month_day in range(1,month_num_days+1):
-                # Get the workday for the month_day.
-                # Continue, if a weekend.
-                workday = get_weekday_number(calendar_year,month,month_day)
-                if workday > 5:
-                    continue
-                # Locate the month in the work_day column.
-                row_num = find_first_matching_cell_by_col_idx(ws,workday,month_day)
-                # Locate the court session placeholder.
-                row_num = find_first_matching_cell_by_col_idx(ws,workday,court_session_placeholder,start_row=row_num)
-                if row_num is None:
-                    logger.error(f"{month=},{month_day=},{workday=},{row_num=},{day_sessions=}")
-                    wb.save("wb-error.xlsx")
-                    breakpoint() # Exception debugging.
-                    raise Exception(f"Unable to locate court session placeholder. {month=}, {month_day=}, {workday=}")
-                # Clear row cells leading up to the month_day's workday if they contain court_session_placeholder.
-                for wd in range(1,workday):
-                    if ws.cell(row_num,wd).value == court_session_placeholder:
-                        ws.cell(row_num,wd).value = None
-                if month_day > month_num_days:
-                    break # Break to next month
-                day_sessions = [row for row in court_session_list if row[0] == datetime.strptime(f'{calendar_year}-{month:02d}-{month_day:02d}','%Y-%m-%d').date()]
-                if day_sessions:
-                    # For the current month_day, add its court_sessions.
-                    day_row_num = 0
-                    for day_session in day_sessions:
-                        # if next row does not contain court session placeholder,
-                        # then add a new row of placeholders.
-                        if ws.cell(row_num+day_row_num+1,workday).value != court_session_placeholder:
-                            # Add court session another row to the sheet.
-                            ws.insert_rows(row_num+day_row_num+1, amount=1)
-                            # Copy cells to new rows.
-                            # This copies the court placeholders from the previous cells.
-                            # This row will have just the court session placeholder in each cell. (Could just set the cell values to the placeholder???)
-                            for col in range(1,6):
-                                copy_cell(ws.cell(row_num+day_row_num,col),ws.cell(row_num+day_row_num+1,col))
-                        session_description, color_name, judicial_officer = day_session[2],day_session[3],day_session[4]
-                        session_cell = ws.cell(row_num+day_row_num,workday)
-                        if color_name:
-                            new_color = get_yaml_config_color(yaml_config,color_name)
-                        else:
-                            new_color = get_yaml_config_color(yaml_config,'Black')
-                        # Add the color to the value to be used later.
-                        # Trying to add the color now, when cells are being inserted and copied
-                        # seems to cause the colors to be incorrect in the result.
-                        if session_description:
-                            session_cell.value = f"{session_description}-[{new_color}]"
-                        else:
-                            session_cell.value = session_description
-                        day_row_num += 1
-                    row_num += day_row_num
-                # All day sessions, if any, have been added.
-                # Clear the day's remaining session placeholders
-                while row := find_first_matching_cell_by_col_idx(ws,workday,court_session_placeholder):
-                    # row must be same or adjacent to row_num.
-                    if row and 0 <= (row - row_num) <= 1:
-                        row_num = row
-                        ws.cell(row_num,workday).value = None
-                    else:
-                        break
-                if 1==0 and month_day > 13: # test code to stop early.
-                    break # month_day loop
-            #break # month loop
-             
-        # Save workboot for debugging.
-        xlsx_filename = "wb4b.xlsx"
-        wb.save(xlsx_filename)
-        wb = load_workbook(xlsx_filename)
-        
-        # For each month (sheet):
-        #   - Remove all court session placeholders.
-        #   - Remove all blank rows.
-        #   - Add Border to last row.
-        for month in range(1,13):
-            # Select the worksheet by index.
-            ws = wb.worksheets[month-1]
-            # Remove all court session placeholders.
-            for row in range(ws.max_row+1,2,-1): #range(1,ws.max_row+2)
-                for col in range(1,6):
-                    # Remove all court session placeholders.
-                    if ws.cell(row,col).value == court_session_placeholder:
-                        ws.cell(row,col).value = ""
-            # Remove all blank rows.
-            for row in range(ws.max_row+1,2,-1): #range(1,ws.max_row+2)
-                blank_row = True
-                for col in range(1,6):
-                    if not (not ws.cell(row,col).value or ws.cell(row,col).value == ""):
-                        blank_row = False
-                        break
-                # Remove blank rows.
-                if blank_row and not ws.cell(row,1).coordinate in ws.merged_cells:
-                    ws.delete_rows(row, amount=1)
+                        # Remove all court session placeholders.
+                        if ws.cell(row,col).value == court_session_placeholder:
+                            ws.cell(row,col).value = ""
+                # Remove all blank rows.
+                for row in range(ws.max_row+1,2,-1): #range(1,ws.max_row+2)
+                    blank_row = True
+                    for col in range(1,6):
+                        if not (not ws.cell(row,col).value or ws.cell(row,col).value == ""):
+                            blank_row = False
+                            break
+                    # Remove blank rows.
+                    if blank_row and not ws.cell(row,1).coordinate in ws.merged_cells:
+                        ws.delete_rows(row, amount=1)
 
-        # Save workboot for debugging.
-        xlsx_filename = "wb5.xlsx"
-        wb.save(xlsx_filename)
-        
-        # Add Border to last row having data.
-        for month in range(1,13):
-            # Define border
-            cs_border = yaml_config['worksheet']['court_session']['border']
-            last_border = Border(
-                left=Side(
-                    style=cs_border['left']['style'], 
-                    color=yaml_config['constants']['colors'][cs_border['left']['color']]
-                ), 
-                right=Side(
-                    style=cs_border['right']['style'], 
-                    color=yaml_config['constants']['colors'][cs_border['right']['color']]
-                ), 
-                top=Side(
-                    style=cs_border['top']['style'], 
-                    color=yaml_config['constants']['colors'][cs_border['top']['color']]
-                ), 
-                bottom=Side(
-                    style='thick', 
-                    color=yaml_config['constants']['colors'][cs_border['bottom']['color']]
-                ) 
-            )
-            # Select the worksheet by index.
-            ws = wb.worksheets[month-1]
-            # From the max_row toward top, find the first row with value.
-            border_row = None
-            for row in range(ws.max_row+1,2,-1): #range(1,ws.max_row+2)
-                blank_row = True
-                for col in range(1,6):
-                    if not (not ws.cell(row,col).value or ws.cell(row,col).value == ""):
-                        blank_row = False
+            # Save workbook for debugging.
+            xlsx_filename = "wb5.xlsx"
+            wb.save(xlsx_filename)
+            
+        if not debugging_skip_code:
+            workbook_name = "wb5.xlsx"
+            wb = load_workbook(workbook_name)
+            # Add Border to last row having data.
+            for month in range(1,13):
+                # Define border
+                cs_border = yaml_config['worksheet']['court_session']['border']
+                last_border = Border(
+                    left=Side(
+                        style=cs_border['left']['style'], 
+                        color=yaml_config['constants']['colors'][cs_border['left']['color']]
+                    ), 
+                    right=Side(
+                        style=cs_border['right']['style'], 
+                        color=yaml_config['constants']['colors'][cs_border['right']['color']]
+                    ), 
+                    top=Side(
+                        style=cs_border['top']['style'], 
+                        color=yaml_config['constants']['colors'][cs_border['top']['color']]
+                    ), 
+                    bottom=Side(
+                        style='thick', 
+                        color=yaml_config['constants']['colors'][cs_border['bottom']['color']]
+                    ) 
+                )
+                # Select the worksheet by index.
+                ws = wb.worksheets[month-1]
+                # From the max_row toward top, find the first row with value.
+                border_row = None
+                for row in range(ws.max_row+1,2,-1): #range(1,ws.max_row+2)
+                    blank_row = True
+                    for col in range(1,6):
+                        if not (not ws.cell(row,col).value or ws.cell(row,col).value == ""):
+                            blank_row = False
+                            break
+                    if not blank_row:
+                        # You must apply the border to ALL cells in the merged range
+                        # since a single cell's border won't cover the entire merged area.
+                        border_row = row
                         break
-                if not blank_row:
-                    # You must apply the border to ALL cells in the merged range
-                    # since a single cell's border won't cover the entire merged area.
-                    border_row = row
-                    break
-            for col in range(1,6): 
-                #ws.cell(border_row,col).font # Simply accessing another style property sometimes forces the update
-                ws.cell(border_row,col).border = last_border
+                for col in range(1,6): 
+                    #ws.cell(border_row,col).font # Simply accessing another style property sometimes forces the update
+                    ws.cell(border_row,col).border = last_border
 
-        # Save workboot for debugging.
-        xlsx_filename = "wb6.xlsx"
-        wb.save(xlsx_filename)
-        
-        # For each sheet (month) look for adjacent cells in each row that have the same content and
-        # if cell.value not blank/None or starts with a number, then merge the cels.
-        for month in range(1,13):
-            ws = wb.worksheets[month-1]
-            for row in range(7,ws.max_row+1):
-                first_cell_in_merge = None
-                last_cell_in_merge = None
-                for col in range(2,6):
-                    if ws.cell(row,col).value == "9:00 ST CR - Pleas (D)-[FF00B050]": # test code
-                        pass
-                    if ws.cell(row,col).value and str(ws.cell(row,col).value)[0] not in "1234567890" and ws.cell(row,col).value == ws.cell(row,col-1).value:
-                        if first_cell_in_merge is None:
-                            first_cell_in_merge = ws.cell(row,col-1)
-                            # Set the font of the first_cell_in_merge.
-                            first_cell_in_merge.alignment = Alignment(
-                                horizontal='center'
-                                ,vertical='center'
-                            )
-                            #first_cell_in_merge.fill = yellow_fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
-                        last_cell_in_merge = ws.cell(row,col)
-                    if col == 5 or ws.cell(row,col).value and ws.cell(row,col).value != ws.cell(row,col-1).value:
-                        if first_cell_in_merge and last_cell_in_merge:
-                            # Merge the cells
-                            ws.merge_cells(f"{first_cell_in_merge.coordinate}:{last_cell_in_merge.coordinate}")
-                            # Define border
-                            border = Border(
-                                left=Side(
-                                    style='thick', 
-                                    color=get_yaml_config_color(yaml_config,'Black')
-                                ), 
-                                right=Side(
-                                    style='thick', 
-                                    color=get_yaml_config_color(yaml_config,'Black')
-                                ), 
-                                top=Side(
-                                    style='thick', 
-                                    color=get_yaml_config_color(yaml_config,'Black')
-                                ), 
-                                bottom=Side(
-                                    style='thick', 
-                                    color=get_yaml_config_color(yaml_config,'Black')
-                                ) 
-                            )
-                            # Add border
-                            # You must apply the border to ALL cells in the merged range
-                            # since a single cell's border won't cover the entire merged area.
-                            for cells_in_row in ws.iter_rows(
-                                min_row=first_cell_in_merge.row
-                                ,min_col=first_cell_in_merge.column
-                                ,max_row=last_cell_in_merge.row
-                                ,max_col=last_cell_in_merge.column
+            # Save workbook for debugging.
+            xlsx_filename = "wb6.xlsx"
+            wb.save(xlsx_filename)
+            
+        if not debugging_skip_code:
+            workbook_name = "wb6.xlsx"
+            wb = load_workbook(workbook_name)
+            # For each sheet (month) look for adjacent cells in each row that have the same content and
+            # if cell.value not blank/None or starts with a number, then merge the cells.
+            for month in range(1,13):
+                ws = wb.worksheets[month-1]
+                for row in range(7,ws.max_row+1):
+                    first_cell_in_merge = None
+                    last_cell_in_merge = None
+                    for col in range(2,6):
+                        if ws.cell(row,col).value == "9:00 ST CR - Pleas (D)-[FF00B050]": # test code
+                            pass
+                        if (
+                                ws.cell(row,col).value
+                                and ws.cell(row,col).value != "Empty"
+                                and str(ws.cell(row,col).value)[0] not in "1234567890" 
+                                and ws.cell(row,col).value == ws.cell(row,col-1).value
                             ):
-                                for cell in cells_in_row:
-                                    cell.border = border
-                            first_cell_in_merge = None
-                            last_cell_in_merge = None
+                            if first_cell_in_merge is None:
+                                first_cell_in_merge = ws.cell(row,col-1)
+                                # Set the font of the first_cell_in_merge.
+                                first_cell_in_merge.alignment = Alignment(
+                                    horizontal='center'
+                                    ,vertical='center'
+                                    ,wrapText=True
+                                )
+                                #first_cell_in_merge.fill = yellow_fill = PatternFill(start_color='FFFFFF00', end_color='FFFFFF00', fill_type='solid')
+                            last_cell_in_merge = ws.cell(row,col)
+                        if col == 5 or ws.cell(row,col).value and ws.cell(row,col).value != ws.cell(row,col-1).value:
+                            if first_cell_in_merge and last_cell_in_merge:
+                                # Merge the cells
+                                ws.merge_cells(f"{first_cell_in_merge.coordinate}:{last_cell_in_merge.coordinate}")
+                                # Define border
+                                border = Border(
+                                    left=Side(
+                                        style='thick', 
+                                        color=get_yaml_config_color(yaml_config,'Black')
+                                    ), 
+                                    right=Side(
+                                        style='thick', 
+                                        color=get_yaml_config_color(yaml_config,'Black')
+                                    ), 
+                                    top=Side(
+                                        style='thick', 
+                                        color=get_yaml_config_color(yaml_config,'Black')
+                                    ), 
+                                    bottom=Side(
+                                        style='thick', 
+                                        color=get_yaml_config_color(yaml_config,'Black')
+                                    ) 
+                                )
+                                # Add border
+                                # You must apply the border to ALL cells in the merged range
+                                # since a single cell's border won't cover the entire merged area.
+                                for cells_in_row in ws.iter_rows(
+                                    min_row=first_cell_in_merge.row
+                                    ,min_col=first_cell_in_merge.column
+                                    ,max_row=last_cell_in_merge.row
+                                    ,max_col=last_cell_in_merge.column
+                                ):
+                                    for cell in cells_in_row:
+                                        cell.border = border
+                                first_cell_in_merge = None
+                                last_cell_in_merge = None
 
-        # Save workboot for debugging.
-        xlsx_filename = "wb7.xlsx"
-        wb.save(xlsx_filename)
-        
-        # For each sheet (month) set the color for each court session cell.
-        # If cell value does not start with a digit, then set the color as the background.
-        # Else, set the color of the font.
-        # The color has been embeded it the content of the cell. It is removed.
-        extraction_pattern = r'-\[([^\]]+)\]'
-        pattern_to_remove = r'-\[.*?\]'
-        for month in range(1,13):
-            ws = wb.worksheets[month-1]
-            for row in range(1,ws.max_row+1):
-                for col in range(1,6):
-                    cell = ws.cell(row,col)
-                    s = str(cell.value)
-                    match = re.search(extraction_pattern,s)
-                    result_removed = re.sub(pattern_to_remove,'',s)
-                    if match:
-                        # Group 1 (the content inside the parentheses) holds the desired substring
-                        new_color = match.group(1)
-                    else:
-                        new_color = None
-
-                    if new_color:
-                        if str(cell.value)[0] not in "1234567890": #cell.coordinate in ws.merged_cells:
-                            cell.fill = PatternFill(start_color=new_color, end_color=new_color, fill_type='solid')
-                            cell.font = Font(
-                                name=font.name,
-                                size=font.size,
-                                bold=True,
-                                italic=font.italic,
-                                underline=font.underline,
-                                strike=font.strike,
-                                color=None  
-                            )
+            # Save workbook for debugging.
+            xlsx_filename = "wb7.xlsx"
+            wb.save(xlsx_filename)
+            
+        debugging_skip_code = False
+        if not debugging_skip_code:
+            workbook_name = "wb7.xlsx"
+            wb = load_workbook(workbook_name)
+            # For each sheet (month) set the color for each court session cell.
+            # If cell value does not start with a digit, then set the color as the background 
+            # and add thick border.
+            # Else, set the color of the font.
+            #
+            # The color has been embeded it the content of the cell, such as:
+            #   NEW YEAR'S DAY-[FFFFFFFF]
+            # It is removed.
+            extraction_pattern = r'-\[([^\]]+)\]'
+            pattern_to_remove = r'-\[.*?\]'
+            for month in range(1,13):
+                ws = wb.worksheets[month-1]
+                for row in range(1,ws.max_row+1):
+                    for col in range(1,6):
+                        cell = ws.cell(row,col)
+                        s = str(cell.value)
+                        match = re.search(extraction_pattern,s)
+                        result_removed = re.sub(pattern_to_remove,'',s)
+                        if match:
+                            # Group 1 (the content inside the parentheses) holds the desired substring
+                            new_color = match.group(1)
                         else:
+                            new_color = None
+                        if new_color:
                             font = cell.font
-                            cell.font = Font(
-                                name=font.name,
-                                size=font.size,
-                                bold=font.bold,
-                                italic=font.italic,
-                                underline=font.underline,
-                                strike=font.strike,
-                                color=new_color  # Only this property is changed
-                            )
-                        cell.value = result_removed
+                            if str(cell.value)[0] not in "1234567890": #cell.coordinate in ws.merged_cells:
+                                cell.fill = PatternFill(start_color=new_color, end_color=new_color, fill_type='solid')
+                                cell.font = Font(
+                                    name=font.name
+                                    ,size=10 #font.size
+                                    ,bold=True
+                                    ,italic=font.italic
+                                    ,underline=font.underline
+                                    ,strike=font.strike
+                                    ,color=None  
+                                )
+                                cell.alignment = Alignment(
+                                    horizontal='center'
+                                    ,vertical='center'
+                                    ,wrapText=True
+                                )  ## This should come from yaml_config???
+                                border = cell.border
+                                cell.border = Border(
+                                    left=Side(style='thick', color=border.left.color)
+                                    ,right=Side(style='thick', color=border.right.color)
+                                    ,top=Side(style='thick', color=border.top.color)
+                                    ,bottom=Side(style='thick', color=border.bottom.color)
+                                )
+                            else:
+                                cell.font = Font(
+                                    name=font.name
+                                    ,size=font.size
+                                    ,bold=font.bold
+                                    ,italic=font.italic
+                                    ,underline=font.underline
+                                    ,strike=font.strike
+                                    ,color=new_color  # Only this property is changed
+                                )
+                            cell.value = result_removed
+
+            # Save the workbook.
+            workbook_name = "wb8.xlsx"
+            logger.info(f"Saving workbook: {workbook_name}")
+            wb.save(workbook_name)
+
+        if not debugging_skip_code:
+            workbook_name = "wb3.xlsx"
+            wb = load_workbook(workbook_name)
+            #breakpoint()
+            workbook_name = "wb8.xlsx"
+            wb = load_workbook(workbook_name)
+            # Remove all empty cells where possible.
+            # Loop through all cells on each month sheet.
+            # If non-merged and empty (value=None or '') then find first non-merged/non-empty/non-month day cell below in same column
+            # and Copy/Paste that cell into the empty cell, then empty the copied cell.
+            #
+            # Finally, remove rows where all columns are empty.
+    #####        for month in range(1,2):
+    #####            ws = wb.worksheets[month-1]
+    #####            for col in range(1,6):
+    #####                empty_cell = None
+    #####                for row in range(1,ws.max_row+1):
+    #####                    cell = ws.cell(row,col)
+    #####                    if not cell.coordinate in ws.merged_cells and not cell.value:
+    #####                        empty_cell = cell
+    #####                        # If current cell is not merged and its value is ''/None (empty), then 
+    #####                        # get the next non-merged and non-empty cell.
+    #####                        for row_num in range(row+1,ws.max_row+1):
+    #####                            cell = ws.cell(row,col)
+    #####                            if not cell.coordinate in ws.merged_cells and cell.value:
+    #####                        row_num = find_first_matching_cell_by_col_idx(ws,col,'',start_row=row+1)
+    #####        # Save the workbook.
+    #####        workbook_name = "wb9.xlsx"
+    #####        logger.info(f"Saving workbook: {workbook_name}")
+    #####        wb.save(workbook_name)
 
         # Save the workbook.
         workbook_name = f"{Path(__file__).stem}.xlsx"
