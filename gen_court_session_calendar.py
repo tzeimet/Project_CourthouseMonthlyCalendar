@@ -1,7 +1,8 @@
-# gen_court_session_calendar.py 20251021
+# gen_court_session_calendar.py 20251022
 
 import calendar
 import configparser
+import copy
 from datetime import date, datetime, timedelta
 import duckdb
 from enum import Enum
@@ -9,10 +10,11 @@ from icecream import ic
 from loguru import logger
 from openpyxl import Workbook
 from openpyxl import load_workbook
-from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.cell import Cell
 from openpyxl.styles import Font, PatternFill, Border, Side, Fill, Alignment
-from openpyxl.utils import get_column_letter, column_index_from_string, coordinate_to_tuple
+from openpyxl.utils import get_column_letter, column_index_from_string, coordinate_to_tuple, range_boundaries
+from openpyxl.worksheet.cell_range import CellRange
+from openpyxl.worksheet.worksheet import Worksheet, MergedCellRange
 import os
 import pandas as pd
 from pandas import DataFrame # Import the specific class for hinting
@@ -23,6 +25,7 @@ from sqlalchemy import create_engine
 import sys
 import urllib
 import typer
+from typing import List
 import yaml
 
 #==============================================================================
@@ -158,26 +161,184 @@ def get_weekday_number(year: int, month: int, day: int):
         logger.exception(f"Error creating date: {year}-{month}-{day}, {e}")
         return None
 #--------------------------------------------------------------------------------------------------
-def copy_cell(source_cell: Cell, dest_cell: Cell):
+def copy_cell(source_cell: Cell, target_cell: Cell) -> None:
     """
-    Copies the value, number format, and style properties of one cell to another.
+    Copies the value, formula, and all styles from source_cell to target_cell.
     """
-    # --- 1. Copy Value and Type ---
-    dest_cell.value = source_cell.value
-    # --- 2. Copy Number Formatting ---
-    # This handles currency, date formats, percentages, etc.
-    dest_cell.number_format = source_cell.number_format
-    # --- 3. Copy Basic Styles (Font, Fill, Border, Alignment, etc.) ---
-    # Note: openpyxl stores styles internally. Accessing the '_style' attribute 
-    # provides the most reliable way to copy the entire style object.
-    if source_cell.has_style:
-         dest_cell._style = source_cell._style
-    # --- 4. Copy Cell Protection (Locked/Hidden) ---
-#    if source_cell.protection:
-#        dest_cell.protection = source_cell.protection
-#    # --- 5. Copy Comment (if present) ---
-    if source_cell.comment:
-        dest_cell.comment = source_cell.comment
+    # 1. Copy Value/Formula
+    target_cell.value = source_cell.value
+    # 2. Copy Styles (using copy() to get an independent object)
+    # Check if the source style object exists before trying to copy it.
+    target_cell.font = copy.copy(source_cell.font) if source_cell.font else None
+    target_cell.border = copy.copy(source_cell.border) if source_cell.border else None
+    target_cell.fill = copy.copy(source_cell.fill) if source_cell.fill else None
+    target_cell.alignment = copy.copy(source_cell.alignment) if source_cell.alignment else None
+    # Number format and protection are simpler assignments
+    target_cell.number_format = source_cell.number_format
+    target_cell.protection = copy.copy(source_cell.protection) if source_cell.protection else None
+    return None
+#--------------------------------------------------------------------------------------------------
+def swap_cells(ws: Worksheet, coord1: str, coord2: str) -> None:
+    cell1 = ws[coord1]
+    cell2 = ws[coord2]
+    # --- 1. Store the full contents of Cell 1 in a temporary structure ---
+    # Core values
+    temp_value = cell1.value
+    temp_data_type = cell1.data_type
+    temp_number_format = cell1.number_format
+    # Styles (using copy.copy() to follow modern openpyxl practice)
+    temp_font = copy.copy(cell1.font) if cell1.font else None
+    temp_border = copy.copy(cell1.border) if cell1.border else None
+    temp_fill = copy.copy(cell1.fill) if cell1.fill else None
+    temp_alignment = copy.copy(cell1.alignment) if cell1.alignment else None
+    temp_protection = copy.copy(cell1.protection) if cell1.protection else None
+    # --- 2. Copy Cell 2's contents to Cell 1 ---
+    # (Using copy.copy() on cell2's objects)
+    cell1.value = cell2.value
+    cell1.data_type = cell2.data_type
+    cell1.number_format = cell2.number_format
+    cell1.font = copy.copy(cell2.font) if cell2.font else None
+    cell1.border = copy.copy(cell2.border) if cell2.border else None
+    cell1.fill = copy.copy(cell2.fill) if cell2.fill else None
+    cell1.alignment = copy.copy(cell2.alignment) if cell2.alignment else None
+    cell1.protection = copy.copy(cell2.protection) if cell2.protection else None
+    # --- 3. Copy Temp contents (Cell 1's original) to Cell 2 ---
+    # (Direct assignment of the pre-copied temp objects)
+    cell2.value = temp_value
+    cell2.data_type = temp_data_type
+    cell2.number_format = temp_number_format
+    cell2.font = temp_font
+    cell2.border = temp_border
+    cell2.fill = temp_fill
+    cell2.alignment = temp_alignment
+    cell2.protection = temp_protection
+    return None
+#--------------------------------------------------------------------------------------------------
+def shift_merges_after_delete_old(ws: Worksheet, deleted_row_idx: int, amount: int=1) -> None:
+    """
+    Shifts the row indices of all merged cell ranges located below the deleted row.
+    """
+    if not ws.merged_cells:
+        return None
+    # 1. Temporarily store all merge ranges
+    all_merges = list(ws.merged_cells)
+    # 2. Unmerge all cells
+    for range_obj in all_merges:
+        ws.unmerge_cells(str(range_obj))
+    # 3. Re-add merged cells with adjusted coordinates
+    for range_obj in all_merges:
+        range_str = str(range_obj)
+        min_col, min_row, max_col, max_row = range_boundaries(range_str)
+        # Check if the merged range is located entirely or partially below the deleted row
+        if min_row > deleted_row_idx:
+            # Shift the range up by 'amount'
+            new_min_row = min_row - amount
+            new_max_row = max_row - amount
+            min_col_letter = get_column_letter(min_col)
+            max_col_letter = get_column_letter(max_col)
+            new_range_str = f"{min_col_letter}{new_min_row}:{max_col_letter}{new_max_row}"
+            ws.merge_cells(new_range_str)
+        # Note: If the deleted row cuts through a merged area, openpyxl's 
+        # original unmerge/re-merge behavior handles it, but complex cases 
+        # (like deleting a row in the middle of a merge) require more logic.
+        # This function handles the common case where you delete a row *above* the merge.
+        else:
+            # Re-add the range as is if it's above or fully within the deleted area
+            ws.merge_cells(range_str)
+    return None
+#--------------------------------------------------------------------------------------------------
+def unmerge_cells(ws: Worksheet) -> List[MergedCellRange]:
+    """
+    Unmerges cells returning a list of the original merge ranges.
+    """
+    if not ws.merged_cells:
+        return None
+    # 1. Temporarily store all merge ranges
+    all_merges = list(ws.merged_cells)
+    # 2. Unmerge all cells
+    for range_obj in all_merges:
+        ws.unmerge_cells(str(range_obj))
+    return all_merges
+#--------------------------------------------------------------------------------------------------
+def shift_merges(all_merges: List[MergedCellRange], at_row_idx: int, amount: int=1) -> List[MergedCellRange]:
+    """
+    Shifts the row indices of the given merged cell ranges list located below the at_row_idx row.
+    Returns a list of MergedCellRange.
+    """
+    # 3. Re-add merged cells with adjusted coordinates
+    new_merges = []
+    for range_obj in all_merges:
+        range_str = str(range_obj)
+        min_col, min_row, max_col, max_row = range_boundaries(range_str)
+        # Check if the merged range is located entirely or partially below the deleted row
+        if min_row > at_row_idx:
+            # Shift the range up by 'amount'
+            new_min_row = min_row - amount
+            new_max_row = max_row - amount
+            min_col_letter = get_column_letter(min_col)
+            max_col_letter = get_column_letter(max_col)
+            new_range_str = f"{min_col_letter}{new_min_row}:{max_col_letter}{new_max_row}"
+            new_merges.append(CellRange(new_range_str))
+        # Note: If the at_row_idx cuts through a merged area, openpyxl's 
+        # original unmerge/re-merge behavior handles it, but complex cases 
+        # (like deleting a row in the middle of a merge) require more logic.
+        # This function handles the common case where you delete a row *above* the merge.
+        else:
+            # Re-add the range as is if it's above or fully within the deleted area
+            new_merges.append(range_obj)
+    return new_merges
+#--------------------------------------------------------------------------------------------------
+def merge_cells(ws: Worksheet, all_merges: List[MergedCellRange]) -> None:
+    """
+    Add the given merge ranges.
+    """
+    for range_obj in all_merges:
+        range_str = str(range_obj)
+        ws.merge_cells(range_str)
+    return None
+#--------------------------------------------------------------------------------------------------
+def shift_row_dimensions(ws: Worksheet, deleted_row_idx: int, amount: int=1) -> None:
+    """Shifts row height and visibility properties."""
+    # Collect all row numbers greater than the deleted row index
+    rows_to_shift = sorted([r for r in ws.row_dimensions.keys() if r > deleted_row_idx])
+    # Shift from the lowest index upward to avoid overwriting keys
+    for old_row in rows_to_shift:
+        new_row = old_row - amount
+        # Copy the dimension object
+        ws.row_dimensions[new_row] = ws.row_dimensions[old_row]
+        # Clean up the old entry
+        del ws.row_dimensions[old_row]
+    # If a dimension existed for the row being deleted, ensure it's removed
+    if deleted_row_idx in ws.row_dimensions:
+        del ws.row_dimensions[deleted_row_idx]
+    return None
+#--------------------------------------------------------------------------------------------------
+def delete_rows(ws: Worksheet, deleted_row_idx: int, amount: int=1) -> None:
+    """
+    Delete rows, ensuring that that the row-level formatting is correctly moved for shifted rows 
+    due to the delete.
+    """
+    shift_row_dimensions(ws,deleted_row_idx,amount)
+    all_merges = unmerge_cells(ws)
+    new_all_merges = shift_merges(all_merges,deleted_row_idx,amount)
+    ws.delete_rows(deleted_row_idx,amount) # This must be called *after* shifting merges!
+    merge_cells(ws,new_all_merges)
+    return None
+#--------------------------------------------------------------------------------------------------
+def cleanup_single_cell_merges(ws: Worksheet ) -> Worksheet:
+    """
+    Removes single-cell ranges (e.g., 'A6') from the worksheet's merged_cells set.
+    """
+    all_merges = list(ws.merged_cells)
+    for range_obj in all_merges:
+        range_str = str(range_obj)
+        # Get the boundary coordinates (min_col, min_row, max_col, max_row)
+        min_col, min_row, max_col, max_row = range_boundaries(range_str)
+        # 2. Check if the range spans more than one cell
+        if max_row == min_row and max_col == min_col:
+            # It's a single cell (e.g., A6:A6), so we remove it
+             ws.unmerge_cells(range_str)
+    return ws
 #--------------------------------------------------------------------------------------------------
 def get_odyssey_court_sessions_by_year(year: int,config: configparser) -> DataFrame:
     # Construct the ODBC connection string with Trusted_Connection=yes
@@ -249,7 +410,6 @@ CREATE TABLE {DUCKDB_TABLE_NAME} (
         #
         # Get the Special Dates from the YAML configuration
         special_dates = []
-        #breakpoint()
         for sp_dt in yaml_config['data']['special_dates']:
             if sp_dt.get('date',None):
                 special_dates.append(sp_dt)
@@ -557,12 +717,15 @@ def main(
         calendar_year = yaml_config['data'].get('calendar_year',calendar_year)
 ###        MAX_ROW = yaml_config['constants']['worksheet']['MAX_ROW']
         
+        #------------------------------------------------------------------------------------------
         debugging_skip_code = False
+        #------------------------------------------------------------------------------------------
         if not debugging_skip_code:
             # Open a new workbook.
             wb = Workbook()
             # Open the active worksheet. This would be the first of the new workbook.
             ws = wb.active
+            cleanup_single_cell_merges(ws)
             # Rename the worksheet
             sheet_name = yaml_config['worksheet']['sheet_name']
             ws.title = sheet_name.replace(
@@ -676,11 +839,13 @@ def main(
             wb.save(xlsx_filename)
             #sys.exit(0)
             
+        #------------------------------------------------------------------------------------------
         if not debugging_skip_code:
             workbook_name = "wb1.xlsx"
             wb = load_workbook(workbook_name)
             # Open the active worksheet. This would be the first of the new workbook.
             ws = wb.active
+            cleanup_single_cell_merges(ws)
             # Copy worksheet for remaining months
             yaml_config_ws_title = yaml_config['worksheet']['title']
             title_top_left_cell = yaml_config_ws_title['cell_range']['top_left_cell']
@@ -712,6 +877,7 @@ def main(
             wb.save(xlsx_filename)
             #sys.exit(0)
             
+        #------------------------------------------------------------------------------------------
         if not debugging_skip_code:
             workbook_name = "wb2.xlsx"
             wb = load_workbook(workbook_name)
@@ -721,6 +887,7 @@ def main(
             for month in range(1,13):
                 # Select the worksheet by index.
                 ws = wb.worksheets[month-1]
+                cleanup_single_cell_merges(ws)
                 month_num_days = calendar.monthrange(calendar_year, month)[1]
                 monthday = 0 # Controls month loop.
                 for month_day in range(1,month_num_days+1):
@@ -761,6 +928,7 @@ def main(
             wb.save(xlsx_filename)
             wb = load_workbook(xlsx_filename)
             
+        #------------------------------------------------------------------------------------------
         if not debugging_skip_code:
             workbook_name = "wb3.xlsx"
             wb = load_workbook(workbook_name)
@@ -770,6 +938,7 @@ def main(
             for month in range(1,13):
                 # Select the worksheet by index.
                 ws = wb.worksheets[month-1]
+                cleanup_single_cell_merges(ws)
                 # For each column, locate the cells whose value is "Empty" 
                 # and then set its cell font color to the same as its fill color.
                 # (NOTE: This had to be done after reloading the workbook from a file
@@ -797,6 +966,7 @@ def main(
             wb.save(xlsx_filename)
             wb = load_workbook(xlsx_filename)
             
+        #------------------------------------------------------------------------------------------
         if not debugging_skip_code:
             workbook_name = "wb3a.xlsx"
             wb = load_workbook(workbook_name)
@@ -811,6 +981,7 @@ def main(
             for month in range(1,13):
                 # Select the worksheet by index.
                 ws = wb.worksheets[month-1]
+                cleanup_single_cell_merges(ws)
                 month_num_days = calendar.monthrange(calendar_year, month)[1]
                 for month_day in range(1,month_num_days+1):
                     # Get the workday for the month_day.
@@ -881,6 +1052,7 @@ def main(
             wb.save(xlsx_filename)
             wb = load_workbook(xlsx_filename)
             
+        #------------------------------------------------------------------------------------------
         if not debugging_skip_code:
             workbook_name = "wb4.xlsx"
             wb = load_workbook(workbook_name)
@@ -891,6 +1063,7 @@ def main(
             for month in range(1,13):
                 # Select the worksheet by index.
                 ws = wb.worksheets[month-1]
+                cleanup_single_cell_merges(ws)
                 # Remove all court session placeholders.
                 for row in range(ws.max_row+1,2,-1): #range(1,ws.max_row+2)
                     for col in range(1,6):
@@ -912,6 +1085,7 @@ def main(
             xlsx_filename = "wb5.xlsx"
             wb.save(xlsx_filename)
             
+        #------------------------------------------------------------------------------------------
         if not debugging_skip_code:
             workbook_name = "wb5.xlsx"
             wb = load_workbook(workbook_name)
@@ -939,27 +1113,31 @@ def main(
                 )
                 # Select the worksheet by index.
                 ws = wb.worksheets[month-1]
-                # From the max_row toward top, find the first row with value.
-                border_row = None
-                for row in range(ws.max_row+1,2,-1): #range(1,ws.max_row+2)
-                    blank_row = True
-                    for col in range(1,6):
-                        if not (not ws.cell(row,col).value or ws.cell(row,col).value == ""):
-                            blank_row = False
-                            break
-                    if not blank_row:
-                        # You must apply the border to ALL cells in the merged range
-                        # since a single cell's border won't cover the entire merged area.
-                        border_row = row
-                        break
+                cleanup_single_cell_merges(ws)
+#####                # From the max_row toward top, find the first row with value.
+#####                border_row = None
+#####                for row in range(ws.max_row+1,2,-1): #range(1,ws.max_row+2)
+#####                    blank_row = True
+#####                    for col in range(1,6):
+#####                        if not (not ws.cell(row,col).value or ws.cell(row,col).value == ""):
+#####                            blank_row = False
+#####                            break
+#####                    if not blank_row:
+#####                        # You must apply the border to ALL cells in the merged range
+#####                        # since a single cell's border won't cover the entire merged area.
+#####                        border_row = row
+#####                        break
+                border_row = ws.max_row+1
                 for col in range(1,6): 
                     #ws.cell(border_row,col).font # Simply accessing another style property sometimes forces the update
-                    ws.cell(border_row,col).border = last_border
+                    #####ws.cell(border_row,col).border = last_border
+                    ws.cell(border_row,col).border = copy.copy(last_border)
 
             # Save workbook for debugging.
             xlsx_filename = "wb6.xlsx"
             wb.save(xlsx_filename)
             
+        #------------------------------------------------------------------------------------------
         if not debugging_skip_code:
             workbook_name = "wb6.xlsx"
             wb = load_workbook(workbook_name)
@@ -967,6 +1145,7 @@ def main(
             # if cell.value not blank/None or starts with a number, then merge the cells.
             for month in range(1,13):
                 ws = wb.worksheets[month-1]
+                cleanup_single_cell_merges(ws)
                 for row in range(7,ws.max_row+1):
                     first_cell_in_merge = None
                     last_cell_in_merge = None
@@ -1030,7 +1209,7 @@ def main(
             xlsx_filename = "wb7.xlsx"
             wb.save(xlsx_filename)
             
-        debugging_skip_code = False
+        #------------------------------------------------------------------------------------------
         if not debugging_skip_code:
             workbook_name = "wb7.xlsx"
             wb = load_workbook(workbook_name)
@@ -1046,6 +1225,7 @@ def main(
             pattern_to_remove = r'-\[.*?\]'
             for month in range(1,13):
                 ws = wb.worksheets[month-1]
+                cleanup_single_cell_merges(ws)
                 for row in range(1,ws.max_row+1):
                     for col in range(1,6):
                         cell = ws.cell(row,col)
@@ -1099,37 +1279,82 @@ def main(
             logger.info(f"Saving workbook: {workbook_name}")
             wb.save(workbook_name)
 
+        #------------------------------------------------------------------------------------------
         if not debugging_skip_code:
-            workbook_name = "wb3.xlsx"
-            wb = load_workbook(workbook_name)
-            #breakpoint()
             workbook_name = "wb8.xlsx"
             wb = load_workbook(workbook_name)
             # Remove all empty cells where possible.
             # Loop through all cells on each month sheet.
             # If non-merged and empty (value=None or '') then find first non-merged/non-empty/non-month day cell below in same column
             # and Copy/Paste that cell into the empty cell, then empty the copied cell.
-            #
-            # Finally, remove rows where all columns are empty.
-    #####        for month in range(1,2):
-    #####            ws = wb.worksheets[month-1]
-    #####            for col in range(1,6):
-    #####                empty_cell = None
-    #####                for row in range(1,ws.max_row+1):
-    #####                    cell = ws.cell(row,col)
-    #####                    if not cell.coordinate in ws.merged_cells and not cell.value:
-    #####                        empty_cell = cell
-    #####                        # If current cell is not merged and its value is ''/None (empty), then 
-    #####                        # get the next non-merged and non-empty cell.
-    #####                        for row_num in range(row+1,ws.max_row+1):
-    #####                            cell = ws.cell(row,col)
-    #####                            if not cell.coordinate in ws.merged_cells and cell.value:
-    #####                        row_num = find_first_matching_cell_by_col_idx(ws,col,'',start_row=row+1)
-    #####        # Save the workbook.
-    #####        workbook_name = "wb9.xlsx"
-    #####        logger.info(f"Saving workbook: {workbook_name}")
-    #####        wb.save(workbook_name)
+            for month in range(1,13):
+                ws = wb.worksheets[month-1]
+                cleanup_single_cell_merges(ws)
+                for col in range(1,6):
+                    empty_cell = None
+                    row = 0
+                    while row < ws.max_row:
+                        row += 1
+                        cell = ws.cell(row,col)
+                        # Find non-merged, empty cell.
+                        if not cell.coordinate in ws.merged_cells and not cell.value:
+                            empty_cell = cell
+                            # Current cell is not merged and its value is ''/None (empty), then 
+                            # get the next non-merged and non-empty cell.
+                            row2 = 0 # Need to declare so that row2 is available outside the following loop.
+                            for row2 in range(row+1,ws.max_row+1):
+                                cell = ws.cell(row2,col)
+                                if cell.coordinate in ws.merged_cells or isinstance(cell.value,int):
+                                    break
+                                if cell.value and cell.value != "Empty":
+                                    # Copy current cell to empty cell.
+                                    ###copy_cell(cell,empty_cell)
+                                    # Empty current cell.
+                                    ###cell.value = None
+                                    swap_cells(ws,empty_cell.coordinate,cell.coordinate)
+                                    break
+                            if isinstance(cell.value,int) or isinstance(cell.value,int):
+                                # This is a date, so move row to row2.
+                                row = row2
+                    #break
+                #break
+            # Save the workbook.
+            workbook_name = "wb9.xlsx"
+            logger.info(f"Saving workbook: {workbook_name}")
+            wb.save(workbook_name)
 
+        #------------------------------------------------------------------------------------------
+        debugging_skip_code = False
+        if not debugging_skip_code:
+            workbook_name = "wb9.xlsx"
+            wb = load_workbook(workbook_name)
+            # Finally, remove rows where all columns are empty.
+            for month in range(1,13):
+                ws = wb.worksheets[month-1]
+                cleanup_single_cell_merges(ws)
+                # Remove all rows not having merged cells having all columns in row being empty.
+                rows_to_delete = set()
+                max_row = int(ws.max_row)
+                max_row = ws.max_row
+                for row in range(1,max_row+1):
+                    row_is_empty = True # Assume empty.
+                    for col in range(1,6):
+                        cell = ws.cell(row,col)
+                        if cell.coordinate in ws.merged_cells or cell.value:
+                            row_is_empty = False
+                            break
+                    if row_is_empty:
+                        rows_to_delete.add(row)
+                for row in sorted(rows_to_delete,reverse=True):
+                    if row != max_row:
+                        delete_rows(ws,row,amount=1)
+
+            # Save the workbook.
+            workbook_name = "wb9a.xlsx"
+            logger.info(f"Saving workbook: {workbook_name}")
+            wb.save(workbook_name)
+
+        #------------------------------------------------------------------------------------------
         # Save the workbook.
         workbook_name = f"{Path(__file__).stem}.xlsx"
         logger.info(f"Saving workbook: {workbook_name}")
